@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sample job application · auto-fill</title>
+    <style>
+      *{box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;background:#f3f6fb;color:#1b2d47;margin:0;padding:32px 16px}main{max-width:640px;margin:auto;background:#fff;border:1px solid #dfe7f2;border-radius:16px;padding:32px;box-shadow:0 15px 35px #18386410}h1{margin:0 0 4px;font-size:26px}p{color:#65758c;line-height:1.5}label{display:block;margin:18px 0 6px;font-size:14px;font-weight:650}input,select,textarea{width:100%;padding:10px 11px;border:1px solid #bfcbdc;border-radius:8px;font:inherit}input:focus,select:focus{outline:2px solid #8aa9ff}fieldset{border:1px solid #d8e0ec;border-radius:8px;margin:20px 0;padding:10px 15px}fieldset label{font-weight:400;margin:7px 0}fieldset input{width:auto}button{background:#315fe8;color:white;border:0;border-radius:8px;padding:12px 18px;font-weight:700;cursor:pointer}#submitted{font-weight:700;color:#207b50}
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Sample job application</h1>
+      <p>A local fixture for testing auto-fill. This page sends nothing to a server.</p>
+      <form id="application">
+        <label for="first">First Name *</label><input id="first" name="first_name" autocomplete="given-name" required />
+        <label for="last">Last Name *</label><input id="last" name="last_name" autocomplete="family-name" required />
+        <label for="email">Email address *</label><input id="email" type="email" autocomplete="email" required />
+        <label for="phone">Phone number</label><input id="phone" type="tel" autocomplete="tel" />
+        <label for="city">City</label><input id="city" autocomplete="address-level2" />
+        <label for="country">Country</label><select id="country"><option value="">Select a country</option><option value="CA">Canada</option><option value="US">United States</option></select>
+        <label for="university">University</label><input id="university" />
+        <label for="degree">Degree</label><input id="degree" />
+        <label for="grad">Graduation Year</label><input id="grad" aria-label="Graduation Year" />
+        <label for="linkedin">LinkedIn URL</label><input id="linkedin" type="url" />
+        <label for="note">Additional note</label><textarea id="note" rows="3" placeholder="Write this yourself"></textarea>
+        <fieldset><legend>Will you require visa sponsorship?</legend><label><input type="radio" name="visa" value="yes" /> Yes</label><label><input type="radio" name="visa" value="no" /> No</label></fieldset>
+        <label for="resume">Resume upload</label><input id="resume" type="file" accept=".pdf,.docx" />
+        <p>Review the full application before manually submitting.</p>
+        <button type="submit">Manual submit test</button><p id="submitted" role="status"></p>
+      </form>
+    </main>
+    <script>document.getElementById('application').addEventListener('submit', (event) => { event.preventDefault(); document.getElementById('submitted').textContent = 'Manual test submission triggered by you.'; });</script>
+  </body>
+</html>
