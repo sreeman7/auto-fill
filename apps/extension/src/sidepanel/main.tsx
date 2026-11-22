@@ -10,7 +10,7 @@ import { VerifiedFacts } from '../account/VerifiedFacts';
 import { buildPlan } from '../engine/match';
 import { emptyProfile, loadProfile, profileSchema, saveProfile } from '../engine/profile';
 import type { Profile } from '../engine/profile';
-import type { ContentResponse, FillResult, FormField } from '../engine/types';
+import type { AdapterId, ContentResponse, FillResult, FormChangedMessage, FormField, ValidationIssue } from '../engine/types';
 import './styles.css';
 
 type Screen = 'fill' | 'profile' | 'account' | 'resumes';
@@ -52,7 +52,11 @@ function App(): React.JSX.Element {
   const [saved, setSaved] = useState<Profile | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [fields, setFields] = useState<FormField[]>([]);
+  const [issues, setIssues] = useState<ValidationIssue[]>([]);
+  const [adapterId, setAdapterId] = useState<AdapterId>('generic');
+  const [pageUrl, setPageUrl] = useState('');
   const [results, setResults] = useState<FillResult[]>([]);
+  const [lastPlanCount, setLastPlanCount] = useState(0);
   const [tabId, setTabId] = useState<number | null>(null);
   const [notice, setNotice] = useState('');
   const [session, setSession] = useState<Session | null>(null);
@@ -63,7 +67,7 @@ function App(): React.JSX.Element {
     void loadProfile(session?.user.id).then((profile) => {
       if (!active) return;
       setSaved(profile); setDraft(profile ?? emptyProfile);
-      setFields([]); setResults([]); setPhase('idle');
+      setFields([]); setIssues([]); setResults([]); setPhase('idle');
     }).catch(() => setNotice('Could not load your local profile.'));
     return () => { active = false; };
   }, [session?.user.id]);
@@ -75,11 +79,27 @@ function App(): React.JSX.Element {
     return () => subscription.subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (tabId === null) return;
+    const listener = (message: FormChangedMessage, sender: chrome.runtime.MessageSender) => {
+      if (message?.type !== 'AUTO_FILL_CHANGED' || sender.tab?.id !== tabId || phase === 'busy') return;
+      setAdapterId(message.adapterId);
+      setPageUrl(message.pageUrl);
+      setFields(message.fields);
+      setIssues(message.issues);
+      setResults([]);
+      setPhase('scanned');
+      setNotice('The form changed. Review its current fields before filling again.');
+    };
+    chrome.runtime.onMessage.addListener(listener);
+    return () => chrome.runtime.onMessage.removeListener(listener);
+  }, [tabId, phase]);
+
   async function loadFromAccount(): Promise<void> {
     try {
       const profile = await getCloudProfile();
       await saveProfile(profile, session?.user.id);
-      setSaved(profile); setDraft(profile); setFields([]); setPhase('idle');
+      setSaved(profile); setDraft(profile); setFields([]); setIssues([]); setPhase('idle');
       setNotice('Account profile loaded to this device.');
     } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not load account profile.'); }
   }
@@ -90,7 +110,7 @@ function App(): React.JSX.Element {
       const merged = Object.fromEntries(Object.keys(local).map((key) => [key, local[key as keyof Profile] || cloud[key as keyof Profile]])) as Profile;
       if (merged.fullName && merged.email) {
         await saveProfile(merged, session?.user.id);
-        setSaved(merged); setDraft(merged); setFields([]); setPhase('idle');
+        setSaved(merged); setDraft(merged); setFields([]); setIssues([]); setPhase('idle');
       }
     }).catch(() => setNotice('Facts were approved, but the local profile could not be refreshed.'));
   }
@@ -103,6 +123,7 @@ function App(): React.JSX.Element {
       const profile = await saveProfile(parsed.data, session?.user.id);
       setSaved(profile);
       setFields([]);
+      setIssues([]);
       setResults([]);
       setPhase('idle');
       if (session && cloudConfigured) {
@@ -114,14 +135,17 @@ function App(): React.JSX.Element {
   }
 
   async function scan(): Promise<void> {
-    setPhase('busy'); setNotice(''); setResults([]);
+    setPhase('busy'); setNotice(''); setResults([]); setLastPlanCount(0);
     try {
       const id = await activeTabId();
       const response = await sendToPage(id, { type: 'AUTO_FILL_SCAN' });
       if (!response.ok) throw new Error(response.error);
       if (!('fields' in response)) throw new Error('Unexpected scan response.');
       setTabId(id);
+      setAdapterId(response.adapterId);
+      setPageUrl(response.pageUrl);
       setFields(response.fields);
+      setIssues(response.issues);
       setPhase('scanned');
       if (!response.fields.length) setNotice('No supported form controls were found on this page.');
     } catch (error) { setPhase('idle'); setNotice(error instanceof Error ? error.message : 'Could not scan this page.'); }
@@ -133,17 +157,22 @@ function App(): React.JSX.Element {
     try {
       const currentId = await activeTabId();
       if (currentId !== tabId) throw new Error('The active tab changed. Scan this page again.');
-      const response = await sendToPage(tabId, { type: 'AUTO_FILL_APPLY', expected: fields, plan });
+      const response = await sendToPage(tabId, { type: 'AUTO_FILL_APPLY', adapterId, pageUrl, expected: fields, plan });
       if (!response.ok) throw new Error(response.error);
       if (!('results' in response)) throw new Error('Unexpected fill response.');
-      setResults(response.results);
-      setPhase('filled');
-      setNotice('Review every field on the application page before you submit it yourself.');
+      setAdapterId(response.adapterId);
+      setPageUrl(response.pageUrl);
+      setFields(response.fields);
+      setIssues(response.issues);
+      setLastPlanCount(plan.length);
+      setResults(response.formChanged ? [] : response.results);
+      setPhase(response.formChanged ? 'scanned' : 'filled');
+      setNotice(response.formChanged ? 'New or changed fields appeared. Review them before another fill.' : 'Review every field and website error on the application page before you submit it yourself.');
     } catch (error) { setPhase('scanned'); setNotice(error instanceof Error ? error.message : 'Could not fill this page.'); }
   }
 
   const verified = results.filter((result) => result.status === 'verified').length;
-  const manual = fields.length - plan.length;
+  const orderedIssues = [...issues].sort((a, b) => ({ error: 0, 'needs-review': 1, unsupported: 2, warning: 3 }[a.severity] - { error: 0, 'needs-review': 1, unsupported: 2, warning: 3 }[b.severity]));
 
   return <main className="app">
     <header className="topbar">
@@ -185,7 +214,8 @@ function App(): React.JSX.Element {
         <div className="profile-line"><span className="dot" /><span>Profile ready</span><strong>{saved.fullName}</strong></div>
         <button className="primary full" disabled={phase === 'busy'} onClick={() => { void scan(); }}><ScanSearch size={17} />{phase === 'busy' ? 'Working…' : fields.length ? 'Scan again' : 'Scan current page'}</button>
         {phase === 'scanned' || phase === 'filled' ? <>
-          <div className="summary"><div><strong>{fields.length}</strong><span>fields found</span></div><div><strong>{plan.length}</strong><span>ready to fill</span></div><div><strong>{manual}</strong><span>needs review</span></div></div>
+          <div className="summary"><div><strong>{fields.length}</strong><span>fields found</span></div><div><strong>{plan.length}</strong><span>ready to fill</span></div><div><strong>{issues.length}</strong><span>review items</span></div></div>
+          <p className="adapter-line">Detected form: <strong>{adapterId === 'generic' ? 'Generic HTML' : adapterId === 'greenhouse' ? 'Greenhouse' : 'Lever'}</strong></p>
           {fields.length > 0 && <div className="inventory"><h2>Field review</h2><ul>
             {fields.map((field) => {
               const match = plan.find((item) => item.index === field.index);
@@ -194,8 +224,9 @@ function App(): React.JSX.Element {
               return <li className="field-row" key={field.index}><div><strong>{field.label}</strong><small>{field.kind}{field.required ? ' · required' : ''}</small>{match && !result && <p>From profile: {match.value}</p>}{result && <p>{result.reason}</p>}</div><span className={result?.status === 'verified' ? 'badge good' : match && !result ? 'badge ready' : 'badge'}>{result?.status === 'verified' && <Check size={12} />}{status}</span></li>;
             })}
           </ul></div>}
+          {orderedIssues.length > 0 && <div className="inventory"><h2>Pre-submit review</h2><ul>{orderedIssues.map((issue, index) => <li className="issue-row" key={`${issue.code}-${issue.fieldIndex ?? 'form'}-${index}`}><span className={`issue-tag ${issue.severity}`}>{issue.severity}</span><strong>{issue.label}</strong><p>{issue.message}</p><small>{issue.suggestion}</small></li>)}</ul></div>}
           {phase === 'scanned' && plan.length > 0 && <button className="primary full" onClick={() => { void fill(); }}>Fill {plan.length} reviewed {plan.length === 1 ? 'field' : 'fields'}</button>}
-          {phase === 'filled' && <div className="result"><Check size={17} /><span>{verified} of {plan.length} proposed fields read back successfully. Check the page for errors and remaining fields.</span></div>}
+          {phase === 'filled' && <div className="result"><Check size={17} /><span>{verified} of {lastPlanCount} proposed fields read back successfully. Check the page for errors and remaining fields.</span></div>}
         </> : null}
       </>}
     </section>}

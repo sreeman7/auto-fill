@@ -1,0 +1,12 @@
+<!doctype html><html><body>
+<form id="application-form" action="https://jobs.lever.co/example/apply">
+  <input name="name" required>
+  <input name="email" type="email" required>
+  <input name="phone" type="tel" required>
+  <label for="location">Current location</label><input id="location" role="combobox" aria-autocomplete="list" aria-required="true">
+  <label for="resume">Resume</label><input id="resume" type="file" required>
+  <label for="source">How did you hear about us?</label><select id="source" required><option value="">Choose</option><option value="friend">Friend</option></select>
+  <div class="field"><label for="portfolio">Portfolio URL</label><input id="portfolio" type="url" aria-invalid="true" aria-describedby="portfolio-error"><span id="portfolio-error" role="alert">Please enter a valid portfolio URL.</span></div>
+  <button type="submit">Submit application</button>
+</form>
+</body></html>

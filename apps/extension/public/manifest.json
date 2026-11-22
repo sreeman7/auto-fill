@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "auto-fill",
   "description": "Review and fill job applications using a local or account profile.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "minimum_chrome_version": "116",
   "permissions": ["activeTab", "scripting", "storage", "sidePanel"],
   "background": { "service_worker": "background/index.js" },

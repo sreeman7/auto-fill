@@ -27,17 +27,23 @@ function applyValue(control: EligibleControl, item: FillPlanItem): boolean {
   return control.value === item.value;
 }
 
-export function fillForm(expected: FormField[], plan: FillPlanItem[], doc: Document = document): FillResult[] {
-  const fields = scanForm(doc);
+export function fillForm(
+  expected: FormField[], plan: FillPlanItem[], doc: Document = document,
+  scan: (doc: Document) => FormField[] = scanForm,
+  controlsFor: (doc: Document) => EligibleControl[] = getEligibleControls,
+): FillResult[] {
+  const fields = scan(doc);
   const sameInventory = fields.length === expected.length && fields.every((field, index) =>
-    field.label === expected[index]?.label && field.kind === expected[index]?.kind && field.status === expected[index]?.status,
+    field.label === expected[index]?.label && field.kind === expected[index]?.kind &&
+    field.status === expected[index]?.status && field.required === expected[index]?.required &&
+    JSON.stringify(field.options ?? []) === JSON.stringify(expected[index]?.options ?? []),
   );
   if (!sameInventory) throw new Error('The form changed. Scan again before filling.');
-  const controls = getEligibleControls(doc);
+  const controls = controlsFor(doc);
   return plan.map((item) => {
-    const field = scanForm(doc)[item.index];
+    const field = scan(doc)[item.index];
     const control = controls[item.index];
-    if (!field || !control || getEligibleControls(doc)[item.index] !== control || field.status !== 'ready' || field.label !== item.label || field.kind !== item.kind) {
+    if (!field || !control || controlsFor(doc)[item.index] !== control || field.status !== 'ready' || field.label !== item.label || field.kind !== item.kind) {
       return { index: item.index, label: item.label, status: 'skipped', reason: 'Field is no longer ready' };
     }
     try {
