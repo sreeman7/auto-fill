@@ -1,6 +1,6 @@
 # auto-fill
 
-auto-fill is a user-controlled Chrome extension for reviewing and filling job applications. Phase 1 provides local profile storage and deterministic form filling. Phase 2 adds Supabase accounts, account-scoped profiles, private resume uploads, deterministic extraction proposals, and explicit fact approval. Phase 3 adds generic, Greenhouse and Lever form adapters, dynamic form rescanning, and validation reporting. Phase 4 adds grounded job analysis, reviewable resume suggestions, and text-based PDF export. Phase 5 adds screening question drafts and saved, user-approved answers. Phase 6 adds a private application tracker with status updates, duplicate checks, and search. Phase 7 adds API safeguards, privacy-conscious monitoring, staging configuration and CI verification. Phase 8 prepares beta listing assets, a privacy draft, and local browser checks. The extension never submits applications.
+auto-fill is a user-controlled Chrome extension for reviewing and filling job applications. It provides a local profile, deterministic form filling, optional Supabase accounts, private resume uploads with rule-based fact extraction, and an application tracker. Generic, Greenhouse and Lever form adapters support dynamic rescanning and validation reporting. The extension never submits applications or calls an AI service.
 
 ## Requirements and checks
 
@@ -38,22 +38,6 @@ The account tab supports email/password sign-up and sign-in, Google sign-in when
 
 Upload a text-based PDF or DOCX (5 MB maximum) from the **Resumes** tab. Each extracted fact remains a suggestion until selected and approved. Approved facts can later be viewed, corrected or removed under **Profile**. Existing verified profile values are preserved; approved contact details fill only empty account fields. Image-only PDFs need OCR, which is not part of Phase 2.
 
-## Phase 4 job analysis and PDF export
-
-After the Phase 2 cloud setup, add a server-only `OPENAI_API_KEY` and a random `TAILOR_SIGNING_KEY` of at least 32 characters to `apps/api/.env`. `OPENAI_MODEL` defaults to `gpt-4o-mini` and can be changed on the server. Keep both secrets out of `apps/extension/.env`. Install the updated API dependencies, then apply the new migration:
-
-```bash
-source .venv/bin/activate
-python -m pip install -e './apps/api[dev]'
-alembic -c apps/api/alembic.ini upgrade head
-```
-
-Run the API and reload the built extension. In **Tailor**, choose an uploaded resume, paste a job description or copy text from the current page, then inspect the extracted requirements and before/after proposals. Select each rewrite you approve and export the PDF. The export uses approved career facts even when no rewrite is selected. The [Phase 4 guide](docs/phase-4.md) describes evidence checks and limits.
-
-## Phase 5 screening answers
-
-Use the same server-only `OPENAI_API_KEY` and `TAILOR_SIGNING_KEY` configured for Phase 4. Apply the new migration with `alembic -c apps/api/alembic.ini upgrade head`, restart the API, rebuild the extension and reload it in Chrome. In **Answers**, paste a screening question or select its text on the application page and click **Use selected page text**. Review the question, optionally add job context, choose a draft length and request a draft. Edit the answer, check the explicit approval box and save it. Saved answers can be copied or removed. Sensitive questions are not drafted or saved; answer them directly on the application page. See [Phase 5](docs/phase-5.md) for safety rules and test limits.
-
 ## Phase 6 application tracker
 
 Apply the latest migration with `alembic -c apps/api/alembic.ini upgrade head`, restart the API, rebuild the extension and reload it in Chrome. Sign in and open **Tracker** to save a job, record its status, resume version, notes, interview dates and follow-up dates. New records start as **Saved**. After submitting on the job site yourself, edit the record, choose **Applied** or a later status, and explicitly confirm submission. Autofill never changes a tracked status. Duplicate job URLs are blocked; a matching company and title asks for review before you save another role. See [Phase 6](docs/phase-6.md) for API behavior and test limits.
@@ -69,8 +53,8 @@ The built extension has a first-run data-use notice and a local privacy page. St
 ## Repository
 
 - `apps/extension`: MV3 extension, React side panel, local and cloud profile flows.
-- `apps/api`: FastAPI routes, SQLAlchemy models, Alembic migration, resume parsing and Supabase Auth/Storage integration.
+- `apps/api`: FastAPI routes, SQLAlchemy models, Alembic migrations, rule-based resume parsing and Supabase Auth/Storage integration.
 - `tests/fixtures`: sample application forms.
-- `docs/phase-1.md` through `docs/phase-8.md`: scope, review findings, verification and limits.
+- `docs`: scope, review findings, verification and limits for the active features.
 
 The API uses the caller's Supabase token for Auth verification and private Storage operations. Database sessions temporarily assume the `authenticated` role with that verified user's ID, so RLS policies apply. The server secret key is used only for account deletion and must never be bundled with the extension.

@@ -73,6 +73,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--browser", default="/Applications/Brave Browser.app/Contents/MacOS/Brave Browser")
     parser.add_argument("--screenshot", type=Path)
+    parser.add_argument("--privacy-screenshot", type=Path)
     args = parser.parse_args()
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(QuietHandler, directory=str(ROOT)))
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -107,11 +108,18 @@ def main():
                 with connect(panel["webSocketDebuggerUrl"], open_timeout=4) as panel_socket:
                     sidepanel = CDP(panel_socket)
                     wait_for(lambda: sidepanel.evaluate("document.body?.innerText.includes('Your data, your choice') ?? false"))
+                    assert sidepanel.evaluate("!document.body.innerText.includes('OpenAI') && !document.body.innerText.includes('AI draft')") is True
+                    if args.privacy_screenshot:
+                        sidepanel.call("Emulation.setDeviceMetricsOverride", {"width": 1280, "height": 800, "deviceScaleFactor": 1, "mobile": False})
+                        image = sidepanel.call("Page.captureScreenshot", {"format": "png", "captureBeyondViewport": False})["data"]
+                        args.privacy_screenshot.parent.mkdir(parents=True, exist_ok=True)
+                        args.privacy_screenshot.write_bytes(base64.b64decode(image))
                     assert sidepanel.evaluate("document.querySelector('.privacy-intro button').disabled") is True
                     sidepanel.evaluate("document.querySelector('.privacy-intro input[type=checkbox]').click()")
                     wait_for(lambda: sidepanel.evaluate("document.querySelector('.privacy-intro button').disabled === false"))
                     sidepanel.evaluate("document.querySelector('.privacy-intro button').click()")
                     wait_for(lambda: sidepanel.evaluate("document.body.innerText.includes('Review before fill')"))
+                    assert sidepanel.evaluate("[...document.querySelectorAll('nav.tabs button')].map(button => button.textContent.trim()).join('|')") == "Autofill|Profile|Resumes|Tracker|Account"
                     sidepanel.evaluate("chrome.storage.local.set(" + json.dumps({
                         "auto-fill.profile.v1": PROFILE,
                     }) + ").then(() => location.reload())")

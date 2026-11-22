@@ -12,13 +12,13 @@ THIS EXTENSION IS FOR BETA TESTING.
 
 auto-fill helps you review job application forms, see which fields match a profile you saved, and fill supported fields after you approve the preview. It reports missing required fields, website errors, and controls that need your own input. It never clicks the final submit button.
 
-The local profile works without an account. Optional account features include private resume upload with fact approval, reviewable AI job analysis and screening drafts, and an application tracker. Those account features require a configured cloud service and may not be available in a local-only build.
+The local profile works without an account. Optional account features include private resume upload with rule-based fact suggestions and an application tracker. Those account features require a configured cloud service and may not be available in a local-only build.
 
 Greenhouse, Lever and generic HTML application forms have been tested with controlled fixtures. Real employer sites can differ; file uploads, sensitive questions, CAPTCHA, and complex widgets remain manual. Review every value and website message before submitting yourself.
 
 **Single purpose:** Help users review, fill and track their own job applications under their control.
 
-**Privacy practices draft:** Declare personally identifiable information, authentication information, website content, web browsing activity limited to user-invoked job pages, and user-generated content. Check the exact dashboard choices against the final configured build and the published policy. Local profile data is stored on device; cloud account data is sent to the configured API and Supabase; selected job text and approved facts are sent to OpenAI only for requested AI features. No advertising or sale of data.
+**Privacy practices draft:** Declare personally identifiable information, authentication information, website content, web browsing activity limited to user-invoked job pages, and user-generated content. Check the exact dashboard choices against the final configured build and the published policy. Local profile data is stored on device; cloud account data is sent to the configured API and Supabase. No advertising or sale of data.
 
 **Permission explanations:**
 

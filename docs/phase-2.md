@@ -23,6 +23,6 @@ Resume suggestions are deterministic and unverified. The user must select and ap
 
 - Live Supabase Auth, Storage, PostgreSQL RLS and Chrome OAuth have not been exercised because no project credentials or configured extension ID were supplied. Run the setup and end-to-end smoke test before using real resumes.
 - Password recovery needs the Supabase recovery email template to include an OTP code. The button stays hidden unless enabled in the extension build.
-- Image-only PDFs cannot be parsed. Parsing extracts straightforward lines and contact details; it is not an AI resume parser. Every proposal needs review.
+- Image-only PDFs cannot be parsed. Rule-based parsing extracts straightforward lines and contact details. Every proposal needs review.
 - Account deletion spans Storage, PostgreSQL and Auth and is not atomic. A failed Auth deletion may require a retry; this flow needs live staging validation before release.
 - The broader career editor, advanced education/work history structure, resume version history, and ATS adapters belong to later phases.

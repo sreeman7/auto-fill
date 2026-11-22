@@ -25,17 +25,6 @@ it('reports new fields and rejects an old preview or a different page', async ()
   expect(listener).toBeDefined();
   const send = (request: ContentRequest) => new Promise<ContentResponse>((resolve) => listener!(request, undefined, resolve));
 
-  document.body.insertAdjacentHTML('beforeend', `<main>${'Python engineering position. '.repeat(6)}</main>`);
-  const captured = await send({ type: 'AUTO_FILL_JOB_TEXT' });
-  expect(captured).toMatchObject({ ok: true, jobText: expect.stringContaining('Python engineering position') });
-  const range = document.createRange();
-  range.selectNodeContents(document.querySelector('main')!);
-  window.getSelection()?.removeAllRanges();
-  window.getSelection()?.addRange(range);
-  const selection = await send({ type: 'AUTO_FILL_SELECTED_TEXT' });
-  expect(selection).toMatchObject({ ok: true, selectedText: expect.stringContaining('Python engineering position') });
-  window.getSelection()?.removeAllRanges();
-
   const scan = await send({ type: 'AUTO_FILL_SCAN' });
   if (!scan.ok || !('fields' in scan)) throw new Error('Scan failed');
   const plan = buildPlan(scan.fields, profile);

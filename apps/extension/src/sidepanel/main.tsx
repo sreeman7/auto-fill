@@ -1,13 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Check, CircleAlert, FileCheck2, ScanSearch, ShieldCheck, UserRound, LogIn, FileText, Sparkles, MessageSquareText, ListChecks } from 'lucide-react';
+import { Check, CircleAlert, FileCheck2, ScanSearch, ShieldCheck, UserRound, LogIn, FileText, ListChecks } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { AccountPanel } from '../account/AccountPanel';
 import { getCloudProfile, putCloudProfile } from '../account/cloud';
 import { cloudConfigured, supabase } from '../account/supabase';
 import { ResumesPanel } from '../resumes/ResumesPanel';
-import { TailorPanel } from '../tailor/TailorPanel';
-import { ScreeningPanel } from '../screening/ScreeningPanel';
 import { TrackerPanel } from '../tracker/TrackerPanel';
 import { VerifiedFacts } from '../account/VerifiedFacts';
 import { hasPrivacyConsent, savePrivacyConsent } from '../privacy/consent';
@@ -17,7 +15,7 @@ import type { Profile } from '../engine/profile';
 import type { AdapterId, ContentResponse, FillResult, FormChangedMessage, FormField, ValidationIssue } from '../engine/types';
 import './styles.css';
 
-type Screen = 'fill' | 'profile' | 'account' | 'resumes' | 'tailor' | 'screening' | 'tracker';
+type Screen = 'fill' | 'profile' | 'account' | 'resumes' | 'tracker';
 type Phase = 'idle' | 'busy' | 'scanned' | 'filled';
 
 const profileFields: { key: keyof Profile; label: string; placeholder: string; type?: string }[] = [
@@ -227,7 +225,6 @@ function App(): React.JSX.Element {
         <ul className="privacy-points">
           <li>Your saved local profile stays in this browser’s extension storage.</li>
           <li>If you sign in, account data and uploaded resumes are sent to the configured Supabase project.</li>
-          <li>If you request an AI draft, the selected job text or question and your approved career facts are sent through our API to OpenAI.</li>
           <li>We do not automatically submit applications.</li>
         </ul>
         <p className="intro">Read the <a href="privacy.html" target="_blank" rel="noopener noreferrer">full privacy policy</a> before continuing.</p>
@@ -256,8 +253,6 @@ function App(): React.JSX.Element {
       <button className={screen === 'fill' ? 'tab active' : 'tab'} onClick={() => setScreen('fill')}><ScanSearch size={16} /> Autofill</button>
       <button className={screen === 'profile' ? 'tab active' : 'tab'} onClick={() => setScreen('profile')}><UserRound size={16} /> Profile</button>
       <button className={screen === 'resumes' ? 'tab active' : 'tab'} onClick={() => setScreen('resumes')}><FileText size={16} /> Resumes</button>
-      <button className={screen === 'tailor' ? 'tab active' : 'tab'} onClick={() => setScreen('tailor')}><Sparkles size={16} /> Tailor</button>
-      <button className={screen === 'screening' ? 'tab active' : 'tab'} onClick={() => setScreen('screening')}><MessageSquareText size={16} /> Answers</button>
       <button className={screen === 'tracker' ? 'tab active' : 'tab'} onClick={() => setScreen('tracker')}><ListChecks size={16} /> Tracker</button>
       <button className={screen === 'account' ? 'tab active' : 'tab'} onClick={() => setScreen('account')}><LogIn size={16} /> Account</button>
     </nav>
@@ -266,8 +261,6 @@ function App(): React.JSX.Element {
 
     {screen === 'account' ? cloudConfigured ? <AccountPanel session={session} /> : <section className="section"><h1>Cloud account</h1><p className="intro">Cloud settings are not configured. Local autofill remains available. See the Phase 2 setup guide.</p></section>
     : screen === 'resumes' ? session && cloudConfigured ? <ResumesPanel onProfileUpdated={refreshApprovedProfile} /> : <section className="section"><h1>Resume review</h1><p className="intro">Sign in to upload and review resumes privately.</p><button className="secondary" onClick={() => setScreen('account')}>Go to account</button></section>
-    : screen === 'tailor' ? session && cloudConfigured ? <TailorPanel /> : <section className="section"><h1>Tailor resume</h1><p className="intro">Sign in to analyze a job against your approved career facts and export a tailored PDF.</p><button className="secondary" onClick={() => setScreen('account')}>Go to account</button></section>
-    : screen === 'screening' ? session && cloudConfigured ? <ScreeningPanel /> : <section className="section"><h1>Screening answers</h1><p className="intro">Sign in to draft answers from approved career facts.</p><button className="secondary" onClick={() => setScreen('account')}>Go to account</button></section>
     : screen === 'tracker' ? session && cloudConfigured ? <TrackerPanel /> : <section className="section"><h1>Application tracker</h1><p className="intro">Sign in to save jobs and track applications privately.</p><button className="secondary" onClick={() => setScreen('account')}>Go to account</button></section>
     : screen === 'profile' ? <section className="section">
       <div className="section-heading"><div><p className="eyebrow">YOUR INFORMATION</p><h1>Local profile</h1></div><ShieldCheck size={22} /></div>

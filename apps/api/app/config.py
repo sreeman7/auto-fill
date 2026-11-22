@@ -17,9 +17,6 @@ class Settings:
     supabase_publishable_key: str = os.getenv("SUPABASE_PUBLISHABLE_KEY", "")
     supabase_secret_key: str = os.getenv("SUPABASE_SECRET_KEY", "")
     database_url: str = os.getenv("DATABASE_URL", "")
-    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
-    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    tailor_signing_key: str = os.getenv("TAILOR_SIGNING_KEY", "")
     allowed_origins: tuple[str, ...] = tuple(
         origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "").split(",") if origin.strip()
     )
@@ -38,8 +35,6 @@ class Settings:
                 raise ValueError("Hosted environments need HTTPS Supabase and both server-side keys")
             if not self.database_url or parse_qs(urlparse(self.database_url).query).get("sslmode", [""])[0] not in {"require", "verify-ca", "verify-full"}:
                 raise ValueError("Hosted DATABASE_URL must require TLS with sslmode")
-            if len(self.tailor_signing_key) < 32:
-                raise ValueError("Hosted TAILOR_SIGNING_KEY must have at least 32 characters")
             if not self.allowed_origins or any(
                 (parsed := urlparse(origin)).scheme != "chrome-extension" or not parsed.hostname or
                 parsed.path or parsed.query or parsed.fragment or parsed.username or parsed.password

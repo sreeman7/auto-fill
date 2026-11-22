@@ -10,8 +10,6 @@ from .routes.profile import router as profile_router
 from .routes.resumes import router as resumes_router
 from .routes.account import router as account_router
 from .routes.facts import router as facts_router
-from .routes.tailor import router as tailor_router
-from .routes.screening import router as screening_router
 from .routes.applications import router as applications_router
 
 app = FastAPI(title="auto-fill API", version="0.8.0")
@@ -27,8 +25,6 @@ app.include_router(profile_router)
 app.include_router(resumes_router)
 app.include_router(account_router)
 app.include_router(facts_router)
-app.include_router(tailor_router)
-app.include_router(screening_router)
 app.include_router(applications_router)
 
 

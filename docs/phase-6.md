@@ -6,7 +6,7 @@ The signed-in extension has a Tracker tab for saving jobs and updating applicati
 
 ## Submission rule
 
-Creating a record always sets its status to `saved` with no applied date. Moving from a pre-submission status to `applied`, `assessment`, `interview`, `offer`, `rejected` or `withdrawn` requires `confirmSubmitted: true` in the manual update request. The UI presents a checkbox stating that the user submitted on the job website. Autofill and screening flows have no code path that updates tracker status. A database check requires an applied date for those later statuses and forbids one for pre-submission statuses.
+Creating a record always sets its status to `saved` with no applied date. Moving from a pre-submission status to `applied`, `assessment`, `interview`, `offer`, `rejected` or `withdrawn` requires `confirmSubmitted: true` in the manual update request. The UI presents a checkbox stating that the user submitted on the job website. Autofill never updates tracker status. A database check requires an applied date for those later statuses and forbids one for pre-submission statuses.
 
 ## Duplicate checks
 

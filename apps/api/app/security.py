@@ -55,7 +55,6 @@ async def protect_and_monitor(request: Request, call_next) -> Response:
     start = time.monotonic()
     request_id = uuid4().hex
     path = request.url.path
-    expensive = path in {"/api/v1/tailor/analyze", "/api/v1/screening/draft"}
     status = 500
     route = "unmatched"
     try:
@@ -67,8 +66,6 @@ async def protect_and_monitor(request: Request, call_next) -> Response:
             retry_after = limiter.check((client, "ip"), 600)
             if not retry_after:
                 retry_after = limiter.check((identity, "all"), 120)
-            if not retry_after and expensive:
-                retry_after = limiter.check((identity, "model"), 60)
             if retry_after:
                 response = JSONResponse({"detail": "Too many requests. Try again shortly."}, status_code=429,
                                         headers={"Retry-After": str(retry_after)})

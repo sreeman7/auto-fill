@@ -64,7 +64,7 @@ class SecurityTests(unittest.IsolatedAsyncioTestCase):
         kwargs = dict(app_env="staging", supabase_url="https://example.supabase.co",
                       supabase_publishable_key="public", supabase_secret_key="server-secret",
                       database_url="postgresql+psycopg://u:p@db.example/postgres?sslmode=require",
-                      tailor_signing_key="a" * 32, allowed_origins=("chrome-extension://abc",))
+                      allowed_origins=("chrome-extension://abc",))
         Settings(**kwargs)
         with self.assertRaises(ValueError):
             Settings(**{**kwargs, "database_url": "postgresql+psycopg://u:p@db.example/postgres"})

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..auth import AuthUser, get_current_user
 from ..config import settings
 from ..database import get_db
-from ..models import Application, ApprovedAnswer, CareerFact, Profile, Resume, ScreeningDraft, TailoringDraft
+from ..models import Application, CareerFact, Profile, Resume
 from ..services.storage import StorageError, remove_resume_strict
 
 router = APIRouter(prefix="/api/v1/account", tags=["account"])
@@ -30,9 +30,6 @@ async def delete_account(
     except StorageError as exc:
         raise HTTPException(503, str(exc)) from exc
     db.execute(delete(CareerFact).where(CareerFact.user_id == user.id))
-    db.execute(delete(ApprovedAnswer).where(ApprovedAnswer.user_id == user.id))
-    db.execute(delete(ScreeningDraft).where(ScreeningDraft.user_id == user.id))
-    db.execute(delete(TailoringDraft).where(TailoringDraft.user_id == user.id))
     db.execute(delete(Application).where(Application.user_id == user.id))
     db.execute(delete(Resume).where(Resume.user_id == user.id))
     db.execute(delete(Profile).where(Profile.user_id == user.id))
