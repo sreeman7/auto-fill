@@ -126,6 +126,23 @@ class PhaseTwoTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len((await self.client.get("/api/v1/facts")).json()), 1)
         self.assertEqual((await self.client.post(f"/api/v1/resumes/{resume['id']}/approve", json={"items": [{"id": phone["id"], "value": "again"}]})).status_code, 409)
 
+    async def test_approved_contact_facts_create_profile_when_missing(self) -> None:
+        with patch("apps.api.app.routes.resumes.upload_resume", new_callable=AsyncMock):
+            uploaded = await self.client.post("/api/v1/resumes/upload", files={"file": ("resume.docx", docx_bytes())})
+        self.assertEqual(uploaded.status_code, 201, uploaded.text)
+        resume = uploaded.json()
+        contacts = [item for item in resume["suggestions"] if item["kind"] in {"fullName", "email"}]
+        self.assertEqual({item["kind"] for item in contacts}, {"fullName", "email"})
+        approved = await self.client.post(f"/api/v1/resumes/{resume['id']}/approve", json={
+            "items": [{"id": item["id"], "value": item["proposed"]} for item in contacts],
+        })
+        self.assertEqual(approved.status_code, 200, approved.text)
+        self.assertTrue(approved.json()["profileUpdated"])
+        profile = await self.client.get("/api/v1/profile")
+        self.assertEqual(profile.status_code, 200, profile.text)
+        self.assertEqual(profile.json()["fullName"], "Ada Lovelace")
+        self.assertEqual(profile.json()["email"], "ada@example.com")
+
     async def test_anonymous_private_route_is_rejected(self) -> None:
         app.dependency_overrides.clear()
         response = await self.client.get("/api/v1/profile")

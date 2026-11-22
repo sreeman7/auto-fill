@@ -10,8 +10,8 @@ The [listing draft](../release/store/listing.md), [tester invitation draft](beta
 
 ## Review and tests
 
-- `npm run check` passed with the project `.venv` active: TypeScript validation, lint, 24 extension tests, 35 API tests, extension build, and release asset validation. The system Python does not have the API test dependencies installed.
-- `python3 tests/browser_beta_smoke.py --screenshot release/store/screenshot-review-1280x800.png` passed in headless Brave. It loaded a copy of the built extension with temporary localhost access, exercised the first-run consent flow, scanned Greenhouse, Lever and generic HTML fixtures, filled a synthetic email address, and confirmed zero submission events and untouched file inputs. The release manifest was not changed by this test.
+- `npm run check` passed with the project `.venv` active: TypeScript validation, lint, 24 extension tests, 36 API tests, extension build, and release asset validation. The system Python does not have the API test dependencies installed.
+- `python3 tests/browser_beta_smoke.py --screenshot release/store/screenshot-review-1280x800.png` passed in headless Brave. It loaded a copy of the built extension with temporary localhost access, exercised the first-run consent flow, scanned Greenhouse, Lever, generic HTML and dynamic fixtures, filled a synthetic email address, detected a newly inserted field, and confirmed zero submission events and untouched file inputs. The release manifest was not changed by this test.
 - `git diff --check` passed.
 - `npm run package:beta` was deliberately blocked by the publication gate because the policy still lacks a monitored privacy contact. This confirms the incomplete draft cannot be packaged through the release command.
 

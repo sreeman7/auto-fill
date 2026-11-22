@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Check, CircleAlert, FileCheck2, ScanSearch, ShieldCheck, UserRound, LogIn, FileText, Sparkles, MessageSquareText, ListChecks } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
@@ -67,6 +67,9 @@ function App(): React.JSX.Element {
   const [tabId, setTabId] = useState<number | null>(null);
   const [notice, setNotice] = useState('');
   const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(!cloudConfigured);
+  const [authError, setAuthError] = useState('');
+  const sessionOwner = useRef<string | null>(null);
   const plan = useMemo(() => saved ? buildPlan(fields, saved) : [], [fields, saved]);
 
   useEffect(() => {
@@ -74,22 +77,41 @@ function App(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
-    if (privacyConsent !== true) return;
+    if (privacyConsent !== true || !authReady) return;
     let active = true;
+    setSaved(null); setDraft(emptyProfile);
+    setFields([]); setIssues([]); setResults([]); setPhase('idle');
     void loadProfile(session?.user.id).then((profile) => {
       if (!active) return;
       setSaved(profile); setDraft(profile ?? emptyProfile);
       setFields([]); setIssues([]); setResults([]); setPhase('idle');
     }).catch(() => setNotice('Could not load your local profile.'));
     return () => { active = false; };
-  }, [privacyConsent, session?.user.id]);
+  }, [privacyConsent, authReady, session?.user.id]);
 
   useEffect(() => {
     if (privacyConsent !== true) return;
     if (!supabase || !cloudConfigured) return;
-    void supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
-    return () => subscription.subscription.unsubscribe();
+    let active = true;
+    const acceptSession = (next: Session | null): void => {
+      if (!active) return;
+      const owner = next?.user.id ?? null;
+      if (sessionOwner.current !== owner) {
+        sessionOwner.current = owner;
+        setSaved(null); setDraft(emptyProfile);
+        setFields([]); setIssues([]); setResults([]); setPhase('idle');
+      }
+      setSession(next);
+    };
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (error) throw error;
+      acceptSession(data.session);
+      if (active) setAuthReady(true);
+    }).catch(() => {
+      if (active) setAuthError('Could not restore your account session. Reload the side panel to try again.');
+    });
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, next) => acceptSession(next));
+    return () => { active = false; subscription.subscription.unsubscribe(); };
   }, [privacyConsent]);
 
   useEffect(() => {
@@ -213,6 +235,13 @@ function App(): React.JSX.Element {
         {consentError && <div className="inline-message" role="alert">{consentError}</div>}
         <button className="primary full" disabled={!consentChecked} onClick={() => { void savePrivacyConsent().then(() => window.location.reload()).catch(() => setConsentError('Could not save your choice. Try again.')); }}>Continue to auto-fill</button>
       </>}
+    </section>
+  </main>;
+
+  if (!authReady) return <main className="app">
+    <header className="topbar"><div className="brand-mark"><FileCheck2 size={19} /></div><div className="brand-copy"><strong>auto-fill</strong><span>Job application assistant</span></div></header>
+    <section className="section"><h1>Opening your profile…</h1><p className="intro">{authError || 'Restoring your account session before autofill is available.'}</p>
+      {authError && <button className="secondary" onClick={() => window.location.reload()}>Try again</button>}
     </section>
   </main>;
 

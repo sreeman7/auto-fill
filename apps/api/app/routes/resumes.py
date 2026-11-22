@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from ..auth import AuthUser, get_current_user
 from ..database import get_db
 from ..models import CareerFact, Profile, Resume, utc_now
-from ..schemas import ApprovalRequest, ApprovalResult, ResumeView, Suggestion
+from ..schemas import ApprovalRequest, ApprovalResult, ProfilePayload, ResumeView, Suggestion
 from ..services.resume_parser import MAX_UPLOAD_BYTES, ResumeParseError, detect_file_type, extract_suggestions, extract_text
 from ..services.storage import StorageError, delete_resume, upload_resume
 

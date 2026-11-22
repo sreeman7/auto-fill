@@ -27,7 +27,8 @@ PROFILE = {
     "phone": "+1 555 0100", "city": "Edmonton", "country": "Canada", "linkedin": "", "github": "",
     "university": "", "degree": "", "graduationYear": "",
 }
-FIXTURES = (("greenhouse.html", "Greenhouse"), ("lever.html", "Lever"), ("application.html", "Generic HTML"))
+FIXTURES = (("greenhouse.html", "Greenhouse"), ("lever.html", "Lever"),
+            ("application.html", "Generic HTML"), ("dynamic.html", "Generic HTML"))
 
 
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
@@ -105,7 +106,7 @@ def main():
                 panel = browser_json(f"/json/new?{urllib.parse.quote(panel_url, safe='')}", "PUT")
                 with connect(panel["webSocketDebuggerUrl"], open_timeout=4) as panel_socket:
                     sidepanel = CDP(panel_socket)
-                    wait_for(lambda: sidepanel.evaluate("document.body.innerText.includes('Your data, your choice')"))
+                    wait_for(lambda: sidepanel.evaluate("document.body?.innerText.includes('Your data, your choice') ?? false"))
                     assert sidepanel.evaluate("document.querySelector('.privacy-intro button').disabled") is True
                     sidepanel.evaluate("document.querySelector('.privacy-intro input[type=checkbox]').click()")
                     wait_for(lambda: sidepanel.evaluate("document.querySelector('.privacy-intro button').disabled === false"))
@@ -126,6 +127,10 @@ def main():
                             form.evaluate("window.__submitCount = 0; document.querySelectorAll('form').forEach(f => f.addEventListener('submit', () => window.__submitCount++))")
                             sidepanel.evaluate("[...document.querySelectorAll('button')].find(b => /Scan (current page|again)/.test(b.innerText)).click()")
                             wait_for(lambda: sidepanel.evaluate(f"document.body.innerText.includes('Detected form: {adapter}')"))
+                            if filename == "dynamic.html":
+                                form.evaluate("document.getElementById('conditional').innerHTML = '<label for=first>First Name</label><input id=first name=first_name>'")
+                                wait_for(lambda: sidepanel.evaluate("document.body.innerText.includes('The form changed. Review its current fields')"))
+                                wait_for(lambda: sidepanel.evaluate("document.body.innerText.includes('First Name')"))
                             if args.screenshot and filename == "greenhouse.html":
                                 sidepanel.call("Emulation.setDeviceMetricsOverride", {"width": 1280, "height": 800, "deviceScaleFactor": 1, "mobile": False})
                                 image = sidepanel.call("Page.captureScreenshot", {"format": "png", "captureBeyondViewport": False})["data"]
@@ -135,7 +140,7 @@ def main():
                             wait_for(lambda: sidepanel.evaluate("document.body.innerText.includes('proposed fields read back successfully')"))
                             result = form.evaluate("({email:document.querySelector('form:not(#newsletter) input[type=email]').value, submits:window.__submitCount, files:document.querySelector('input[type=file]')?.files.length ?? 0})")
                             assert result["email"] == PROFILE["email"] and result["submits"] == 0 and result["files"] == 0, (filename, result)
-                            print(f"{adapter}: scanned, filled email, left upload and submit untouched")
+                            print(f"{filename}: scanned, filled email, left upload and submit untouched")
             finally:
                 browser.terminate()
                 try:
