@@ -4,6 +4,7 @@ from collections.abc import Generator
 
 from fastapi import Depends, HTTPException
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from .auth import AuthUser, get_current_user
@@ -11,11 +12,26 @@ from .config import settings
 
 
 def make_session_factory(url: str) -> sessionmaker[Session]:
-    engine = create_engine(url, pool_pre_ping=True)
+    connect_args = {"connect_timeout": 3} if url.startswith("postgresql") else {}
+    engine = create_engine(url, pool_pre_ping=True, connect_args=connect_args)
     return sessionmaker(bind=engine, expire_on_commit=False)
 
 
 _session_factory: sessionmaker[Session] | None = None
+
+
+def database_ready() -> bool:
+    global _session_factory
+    if not settings.database_url:
+        return False
+    try:
+        if _session_factory is None:
+            _session_factory = make_session_factory(settings.database_url)
+        with _session_factory() as session:
+            session.execute(text("SELECT 1"))
+        return True
+    except SQLAlchemyError:
+        return False
 
 
 def get_db(user: AuthUser = Depends(get_current_user)) -> Generator[Session, None, None]:

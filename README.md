@@ -1,6 +1,6 @@
 # auto-fill
 
-auto-fill is a user-controlled Chrome extension for reviewing and filling job applications. Phase 1 provides local profile storage and deterministic form filling. Phase 2 adds Supabase accounts, account-scoped profiles, private resume uploads, deterministic extraction proposals, and explicit fact approval. Phase 3 adds generic, Greenhouse and Lever form adapters, dynamic form rescanning, and validation reporting. Phase 4 adds grounded job analysis, reviewable resume suggestions, and text-based PDF export. Phase 5 adds screening question drafts and saved, user-approved answers. Phase 6 adds a private application tracker with status updates, duplicate checks, and search. The extension never submits applications.
+auto-fill is a user-controlled Chrome extension for reviewing and filling job applications. Phase 1 provides local profile storage and deterministic form filling. Phase 2 adds Supabase accounts, account-scoped profiles, private resume uploads, deterministic extraction proposals, and explicit fact approval. Phase 3 adds generic, Greenhouse and Lever form adapters, dynamic form rescanning, and validation reporting. Phase 4 adds grounded job analysis, reviewable resume suggestions, and text-based PDF export. Phase 5 adds screening question drafts and saved, user-approved answers. Phase 6 adds a private application tracker with status updates, duplicate checks, and search. Phase 7 adds API safeguards, privacy-conscious monitoring, staging configuration and CI verification. The extension never submits applications.
 
 ## Requirements and checks
 
@@ -10,6 +10,7 @@ Requirements: Node.js 20+, npm, Python 3.12+, and Chrome 116+.
 npm install
 python3 -m venv .venv
 source .venv/bin/activate
+python -m pip install --upgrade pip
 python -m pip install -e './apps/api[dev]'
 npm run check
 ```
@@ -29,7 +30,7 @@ Open `http://127.0.0.1:8000/tests/fixtures/application.html` in Chrome. At `chro
 1. Create a Supabase project. Enable email confirmation. Enable Google as a provider if you want Google sign-in.
 2. Copy `apps/api/.env.example` to `apps/api/.env` and `apps/extension/.env.example` to `apps/extension/.env`. Set the Supabase URL and publishable key in both files. Set the database URL and **server-only** secret key in the API file. Set `VITE_API_BASE_URL=http://127.0.0.1:8001` in the extension file. Never put the secret key or database password in the extension file.
 3. From the repository root, run `alembic -c apps/api/alembic.ini upgrade head` with the virtual environment active. This creates user-scoped tables, row-level security policies, and a private `resumes` bucket.
-4. Build and load the extension. Copy its ID from `chrome://extensions` into API `ALLOWED_ORIGINS=chrome-extension://YOUR_EXTENSION_ID`, then run `uvicorn apps.api.app.main:app --host 127.0.0.1 --port 8001` from the repository root. Reload the extension after rebuilding it with the cloud settings.
+4. Build and load the extension. Copy its ID from `chrome://extensions` into API `ALLOWED_ORIGINS=chrome-extension://YOUR_EXTENSION_ID`, then run `uvicorn apps.api.app.main:app --host 127.0.0.1 --port 8001 --no-access-log` from the repository root. Reload the extension after rebuilding it with the cloud settings.
 5. For Google sign-in, add `https://YOUR_EXTENSION_ID.chromiumapp.org/auth` to Supabase Auth's redirect allowlist and complete Google provider setup in Supabase. The extension uses Chrome's identity flow.
 6. For password recovery by code, change the Supabase **Reset password** email template to include `{{ .Token }}`, set `VITE_RECOVERY_CODE_ENABLED=true`, and rebuild. The recovery button is hidden until this is configured.
 
@@ -57,11 +58,15 @@ Use the same server-only `OPENAI_API_KEY` and `TAILOR_SIGNING_KEY` configured fo
 
 Apply the latest migration with `alembic -c apps/api/alembic.ini upgrade head`, restart the API, rebuild the extension and reload it in Chrome. Sign in and open **Tracker** to save a job, record its status, resume version, notes, interview dates and follow-up dates. New records start as **Saved**. After submitting on the job site yourself, edit the record, choose **Applied** or a later status, and explicitly confirm submission. Autofill never changes a tracked status. Duplicate job URLs are blocked; a matching company and title asks for review before you save another role. See [Phase 6](docs/phase-6.md) for API behavior and test limits.
 
+## Phase 7 security and quality
+
+The API now emits JSON request logs containing only a route template, method, status, duration and random request ID. It adds rate limits, `no-store` and other response headers, plus `/api/v1/health` for liveness and `/api/v1/ready` for database readiness. Disable hosting platform access logs that include raw URLs or query strings. The [Phase 7 guide](docs/phase-7.md) covers the CI workflow, staging configuration, browser checks and remaining live-test work.
+
 ## Repository
 
 - `apps/extension`: MV3 extension, React side panel, local and cloud profile flows.
 - `apps/api`: FastAPI routes, SQLAlchemy models, Alembic migration, resume parsing and Supabase Auth/Storage integration.
 - `tests/fixtures`: sample application forms.
-- `docs/phase-1.md` through `docs/phase-6.md`: scope, review findings, verification and limits.
+- `docs/phase-1.md` through `docs/phase-7.md`: scope, review findings, verification and limits.
 
 The API uses the caller's Supabase token for Auth verification and private Storage operations. Database sessions temporarily assume the `authenticated` role with that verified user's ID, so RLS policies apply. The server secret key is used only for account deletion and must never be bundled with the extension.

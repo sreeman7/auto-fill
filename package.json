@@ -1,10 +1,11 @@
 {
   "name": "auto-fill",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.0",
   "workspaces": ["apps/extension"],
   "scripts": {
     "build": "npm run build -w @auto-fill/extension",
+    "build:staging": "npm run build:staging -w @auto-fill/extension",
     "typecheck": "npm run typecheck -w @auto-fill/extension",
     "test": "npm run test -w @auto-fill/extension",
     "test:api": "python3 -m unittest discover -s apps/api/tests",
