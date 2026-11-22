@@ -1,7 +1,7 @@
 {
   "name": "auto-fill",
   "private": true,
-  "version": "0.7.0",
+  "version": "0.8.0",
   "workspaces": ["apps/extension"],
   "scripts": {
     "build": "npm run build -w @auto-fill/extension",
@@ -10,6 +10,8 @@
     "test": "npm run test -w @auto-fill/extension",
     "test:api": "python3 -m unittest discover -s apps/api/tests",
     "lint": "npm run lint -w @auto-fill/extension",
-    "check": "npm run typecheck && npm run lint && npm test && npm run test:api && npm run build"
+    "verify:release": "python3 scripts/verify_release.py",
+    "package:beta": "python3 scripts/package_beta.py",
+    "check": "npm run typecheck && npm run lint && npm test && npm run test:api && npm run build && npm run verify:release"
   }
 }

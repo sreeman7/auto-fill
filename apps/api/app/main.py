@@ -14,7 +14,7 @@ from .routes.tailor import router as tailor_router
 from .routes.screening import router as screening_router
 from .routes.applications import router as applications_router
 
-app = FastAPI(title="auto-fill API", version="0.7.0")
+app = FastAPI(title="auto-fill API", version="0.8.0")
 app.middleware("http")(protect_and_monitor)
 app.add_middleware(
     CORSMiddleware,

@@ -1,4 +1,5 @@
 import { createClient, type Session } from '@supabase/supabase-js';
+import { hasPrivacyConsent } from '../privacy/consent';
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim();
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
@@ -7,10 +8,12 @@ export const cloudConfigured = Boolean(url && publishableKey && import.meta.env.
 
 const storage = {
   async getItem(key: string): Promise<string | null> {
+    if (!await hasPrivacyConsent()) return null;
     const result = await chrome.storage.local.get(key);
     return typeof result[key] === 'string' ? result[key] : null;
   },
   async setItem(key: string, value: string): Promise<void> {
+    if (!await hasPrivacyConsent()) return;
     await chrome.storage.local.set({ [key]: value });
   },
   async removeItem(key: string): Promise<void> {

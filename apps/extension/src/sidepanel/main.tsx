@@ -10,8 +10,9 @@ import { TailorPanel } from '../tailor/TailorPanel';
 import { ScreeningPanel } from '../screening/ScreeningPanel';
 import { TrackerPanel } from '../tracker/TrackerPanel';
 import { VerifiedFacts } from '../account/VerifiedFacts';
+import { hasPrivacyConsent, savePrivacyConsent } from '../privacy/consent';
 import { buildPlan } from '../engine/match';
-import { emptyProfile, loadProfile, profileSchema, saveProfile } from '../engine/profile';
+import { deleteProfile, emptyProfile, loadProfile, profileSchema, saveProfile } from '../engine/profile';
 import type { Profile } from '../engine/profile';
 import type { AdapterId, ContentResponse, FillResult, FormChangedMessage, FormField, ValidationIssue } from '../engine/types';
 import './styles.css';
@@ -50,6 +51,9 @@ async function sendToPage(tabId: number, message: unknown): Promise<ContentRespo
 }
 
 function App(): React.JSX.Element {
+  const [privacyConsent, setPrivacyConsent] = useState<boolean | null>(null);
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [consentError, setConsentError] = useState('');
   const [screen, setScreen] = useState<Screen>('fill');
   const [draft, setDraft] = useState<Profile>(emptyProfile);
   const [saved, setSaved] = useState<Profile | null>(null);
@@ -66,6 +70,11 @@ function App(): React.JSX.Element {
   const plan = useMemo(() => saved ? buildPlan(fields, saved) : [], [fields, saved]);
 
   useEffect(() => {
+    void hasPrivacyConsent().then(setPrivacyConsent).catch(() => setPrivacyConsent(false));
+  }, []);
+
+  useEffect(() => {
+    if (privacyConsent !== true) return;
     let active = true;
     void loadProfile(session?.user.id).then((profile) => {
       if (!active) return;
@@ -73,14 +82,15 @@ function App(): React.JSX.Element {
       setFields([]); setIssues([]); setResults([]); setPhase('idle');
     }).catch(() => setNotice('Could not load your local profile.'));
     return () => { active = false; };
-  }, [session?.user.id]);
+  }, [privacyConsent, session?.user.id]);
 
   useEffect(() => {
+    if (privacyConsent !== true) return;
     if (!supabase || !cloudConfigured) return;
     void supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
     return () => subscription.subscription.unsubscribe();
-  }, []);
+  }, [privacyConsent]);
 
   useEffect(() => {
     if (tabId === null) return;
@@ -137,6 +147,15 @@ function App(): React.JSX.Element {
     } catch { setNotice('Could not save your profile.'); }
   }
 
+  async function clearLocalProfile(): Promise<void> {
+    if (!window.confirm('Remove this device’s saved profile? Your cloud profile, if any, will remain.')) return;
+    try {
+      await deleteProfile(session?.user.id);
+      setSaved(null); setDraft(emptyProfile); setFields([]); setIssues([]); setResults([]); setPhase('idle');
+      setNotice('This device’s saved profile was removed.');
+    } catch { setNotice('Could not remove this device’s profile.'); }
+  }
+
   async function scan(): Promise<void> {
     setPhase('busy'); setNotice(''); setResults([]); setLastPlanCount(0);
     try {
@@ -177,6 +196,26 @@ function App(): React.JSX.Element {
   const verified = results.filter((result) => result.status === 'verified').length;
   const orderedIssues = [...issues].sort((a, b) => ({ error: 0, 'needs-review': 1, unsupported: 2, warning: 3 }[a.severity] - { error: 0, 'needs-review': 1, unsupported: 2, warning: 3 }[b.severity]));
 
+  if (privacyConsent !== true) return <main className="app">
+    <header className="topbar"><div className="brand-mark"><FileCheck2 size={19} /></div><div className="brand-copy"><strong>auto-fill</strong><span>Job application assistant</span></div></header>
+    <section className="section privacy-intro">
+      <p className="eyebrow">BEFORE YOU START</p><h1>Your data, your choice</h1>
+      {privacyConsent === null ? <p className="intro">Loading your privacy choice…</p> : <>
+        <p className="intro">auto-fill helps you review and fill job applications. You decide when to scan a page, save a profile, use cloud features, or submit an application.</p>
+        <ul className="privacy-points">
+          <li>Your saved local profile stays in this browser’s extension storage.</li>
+          <li>If you sign in, account data and uploaded resumes are sent to the configured Supabase project.</li>
+          <li>If you request an AI draft, the selected job text or question and your approved career facts are sent through our API to OpenAI.</li>
+          <li>We do not automatically submit applications.</li>
+        </ul>
+        <p className="intro">Read the <a href="privacy.html" target="_blank" rel="noopener noreferrer">full privacy policy</a> before continuing.</p>
+        <label className="confirmation"><input type="checkbox" checked={consentChecked} onChange={(event) => setConsentChecked(event.target.checked)} /> I understand and agree to this data use.</label>
+        {consentError && <div className="inline-message" role="alert">{consentError}</div>}
+        <button className="primary full" disabled={!consentChecked} onClick={() => { void savePrivacyConsent().then(() => window.location.reload()).catch(() => setConsentError('Could not save your choice. Try again.')); }}>Continue to auto-fill</button>
+      </>}
+    </section>
+  </main>;
+
   return <main className="app">
     <header className="topbar">
       <div className="brand-mark"><FileCheck2 size={19} strokeWidth={2.2} /></div>
@@ -212,6 +251,7 @@ function App(): React.JSX.Element {
         </label>)}
         <button className="primary full" type="submit">{session ? 'Save locally & to account' : 'Save local profile'}</button>
       </form>
+      {saved && <button className="danger full spaced" onClick={() => { void clearLocalProfile(); }}>Clear this device’s profile</button>}
       {session && <VerifiedFacts ownerId={session.user.id} />}
     </section> : <section className="section">
       <div className="section-heading"><div><p className="eyebrow">APPLICATION WORKFLOW</p><h1>Review before fill</h1></div><ShieldCheck size={22} /></div>

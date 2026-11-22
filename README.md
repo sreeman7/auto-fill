@@ -1,6 +1,6 @@
 # auto-fill
 
-auto-fill is a user-controlled Chrome extension for reviewing and filling job applications. Phase 1 provides local profile storage and deterministic form filling. Phase 2 adds Supabase accounts, account-scoped profiles, private resume uploads, deterministic extraction proposals, and explicit fact approval. Phase 3 adds generic, Greenhouse and Lever form adapters, dynamic form rescanning, and validation reporting. Phase 4 adds grounded job analysis, reviewable resume suggestions, and text-based PDF export. Phase 5 adds screening question drafts and saved, user-approved answers. Phase 6 adds a private application tracker with status updates, duplicate checks, and search. Phase 7 adds API safeguards, privacy-conscious monitoring, staging configuration and CI verification. The extension never submits applications.
+auto-fill is a user-controlled Chrome extension for reviewing and filling job applications. Phase 1 provides local profile storage and deterministic form filling. Phase 2 adds Supabase accounts, account-scoped profiles, private resume uploads, deterministic extraction proposals, and explicit fact approval. Phase 3 adds generic, Greenhouse and Lever form adapters, dynamic form rescanning, and validation reporting. Phase 4 adds grounded job analysis, reviewable resume suggestions, and text-based PDF export. Phase 5 adds screening question drafts and saved, user-approved answers. Phase 6 adds a private application tracker with status updates, duplicate checks, and search. Phase 7 adds API safeguards, privacy-conscious monitoring, staging configuration and CI verification. Phase 8 prepares beta listing assets, a privacy draft, and local browser checks. The extension never submits applications.
 
 ## Requirements and checks
 
@@ -15,7 +15,7 @@ python -m pip install -e './apps/api[dev]'
 npm run check
 ```
 
-`npm run check` runs TypeScript validation, lint, extension tests, API tests, and the extension build. The API tests use an isolated SQLite database and mocked Supabase responses; they do not contact a live Supabase project.
+`npm run check` runs TypeScript validation, lint, extension tests, API tests, the extension build, and release asset verification. The API tests use an isolated SQLite database and mocked Supabase responses; they do not contact a live Supabase project.
 
 ## Local autofill (no account needed)
 
@@ -62,11 +62,15 @@ Apply the latest migration with `alembic -c apps/api/alembic.ini upgrade head`, 
 
 The API now emits JSON request logs containing only a route template, method, status, duration and random request ID. It adds rate limits, `no-store` and other response headers, plus `/api/v1/health` for liveness and `/api/v1/ready` for database readiness. Disable hosting platform access logs that include raw URLs or query strings. The [Phase 7 guide](docs/phase-7.md) covers the CI workflow, staging configuration, browser checks and remaining live-test work.
 
+## Phase 8 beta preparation
+
+The built extension has a first-run data-use notice and a local privacy page. Store artwork, listing copy, a tester invitation draft, and a feedback workflow are prepared. The [Phase 8 review](docs/phase-8.md) records the local browser results and the steps needed before a private Chrome Web Store beta. `npm run package:beta` blocks packaging while the privacy contact, public policy URL, and cloud service origins are missing.
+
 ## Repository
 
 - `apps/extension`: MV3 extension, React side panel, local and cloud profile flows.
 - `apps/api`: FastAPI routes, SQLAlchemy models, Alembic migration, resume parsing and Supabase Auth/Storage integration.
 - `tests/fixtures`: sample application forms.
-- `docs/phase-1.md` through `docs/phase-7.md`: scope, review findings, verification and limits.
+- `docs/phase-1.md` through `docs/phase-8.md`: scope, review findings, verification and limits.
 
 The API uses the caller's Supabase token for Auth verification and private Storage operations. Database sessions temporarily assume the `authenticated` role with that verified user's ID, so RLS policies apply. The server secret key is used only for account deletion and must never be bundled with the extension.
