@@ -24,19 +24,21 @@ export const emptyProfile: Profile = {
 };
 
 const storageKey = 'auto-fill.profile.v1';
+const keyFor = (ownerId?: string): string => ownerId ? `auto-fill.profile.user.${ownerId}.v1` : storageKey;
 
-export async function loadProfile(): Promise<Profile | null> {
-  const stored: unknown = (await chrome.storage.local.get(storageKey))[storageKey];
+export async function loadProfile(ownerId?: string): Promise<Profile | null> {
+  const key = keyFor(ownerId);
+  const stored: unknown = (await chrome.storage.local.get(key))[key];
   const parsed = profileSchema.safeParse(stored);
   return parsed.success ? parsed.data : null;
 }
 
-export async function saveProfile(input: Profile): Promise<Profile> {
+export async function saveProfile(input: Profile, ownerId?: string): Promise<Profile> {
   const profile = profileSchema.parse(input);
-  await chrome.storage.local.set({ [storageKey]: profile });
+  await chrome.storage.local.set({ [keyFor(ownerId)]: profile });
   return profile;
 }
 
-export async function deleteProfile(): Promise<void> {
-  await chrome.storage.local.remove(storageKey);
+export async function deleteProfile(ownerId?: string): Promise<void> {
+  await chrome.storage.local.remove(keyFor(ownerId));
 }

@@ -1,13 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Check, CircleAlert, FileCheck2, ScanSearch, ShieldCheck, UserRound } from 'lucide-react';
+import { Check, CircleAlert, FileCheck2, ScanSearch, ShieldCheck, UserRound, LogIn, FileText } from 'lucide-react';
+import type { Session } from '@supabase/supabase-js';
+import { AccountPanel } from '../account/AccountPanel';
+import { getCloudProfile, putCloudProfile } from '../account/cloud';
+import { cloudConfigured, supabase } from '../account/supabase';
+import { ResumesPanel } from '../resumes/ResumesPanel';
+import { VerifiedFacts } from '../account/VerifiedFacts';
 import { buildPlan } from '../engine/match';
 import { emptyProfile, loadProfile, profileSchema, saveProfile } from '../engine/profile';
 import type { Profile } from '../engine/profile';
 import type { ContentResponse, FillResult, FormField } from '../engine/types';
 import './styles.css';
 
-type Screen = 'fill' | 'profile';
+type Screen = 'fill' | 'profile' | 'account' | 'resumes';
 type Phase = 'idle' | 'busy' | 'scanned' | 'filled';
 
 const profileFields: { key: keyof Profile; label: string; placeholder: string; type?: string }[] = [
@@ -49,25 +55,60 @@ function App(): React.JSX.Element {
   const [results, setResults] = useState<FillResult[]>([]);
   const [tabId, setTabId] = useState<number | null>(null);
   const [notice, setNotice] = useState('');
+  const [session, setSession] = useState<Session | null>(null);
   const plan = useMemo(() => saved ? buildPlan(fields, saved) : [], [fields, saved]);
 
   useEffect(() => {
-    void loadProfile().then((profile) => {
-      if (profile) { setSaved(profile); setDraft(profile); }
+    let active = true;
+    void loadProfile(session?.user.id).then((profile) => {
+      if (!active) return;
+      setSaved(profile); setDraft(profile ?? emptyProfile);
+      setFields([]); setResults([]); setPhase('idle');
     }).catch(() => setNotice('Could not load your local profile.'));
+    return () => { active = false; };
+  }, [session?.user.id]);
+
+  useEffect(() => {
+    if (!supabase || !cloudConfigured) return;
+    void supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    return () => subscription.subscription.unsubscribe();
   }, []);
+
+  async function loadFromAccount(): Promise<void> {
+    try {
+      const profile = await getCloudProfile();
+      await saveProfile(profile, session?.user.id);
+      setSaved(profile); setDraft(profile); setFields([]); setPhase('idle');
+      setNotice('Account profile loaded to this device.');
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not load account profile.'); }
+  }
+
+  function refreshApprovedProfile(): void {
+    void getCloudProfile().then(async (cloud) => {
+      const local = saved ?? emptyProfile;
+      const merged = Object.fromEntries(Object.keys(local).map((key) => [key, local[key as keyof Profile] || cloud[key as keyof Profile]])) as Profile;
+      if (merged.fullName && merged.email) {
+        await saveProfile(merged, session?.user.id);
+        setSaved(merged); setDraft(merged); setFields([]); setPhase('idle');
+      }
+    }).catch(() => setNotice('Facts were approved, but the local profile could not be refreshed.'));
+  }
 
   async function save(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const parsed = profileSchema.safeParse(draft);
     if (!parsed.success) { setNotice(parsed.error.issues[0]?.message ?? 'Check your profile.'); return; }
     try {
-      const profile = await saveProfile(parsed.data);
+      const profile = await saveProfile(parsed.data, session?.user.id);
       setSaved(profile);
       setFields([]);
       setResults([]);
       setPhase('idle');
-      setNotice('Profile saved on this device.');
+      if (session && cloudConfigured) {
+        try { await putCloudProfile(profile); setNotice('Profile saved on this device and to your account.'); }
+        catch (error) { setNotice(`Saved locally. Account save failed: ${error instanceof Error ? error.message : 'Unknown error'}`); }
+      } else setNotice('Profile saved on this device.');
       setScreen('fill');
     } catch { setNotice('Could not save your profile.'); }
   }
@@ -108,26 +149,32 @@ function App(): React.JSX.Element {
     <header className="topbar">
       <div className="brand-mark"><FileCheck2 size={19} strokeWidth={2.2} /></div>
       <div className="brand-copy"><strong>auto-fill</strong><span>Job application assistant</span></div>
-      <span className="version">LOCAL</span>
+      <span className="version">{session ? 'ACCOUNT' : 'LOCAL'}</span>
     </header>
 
     <nav className="tabs" aria-label="Main sections">
       <button className={screen === 'fill' ? 'tab active' : 'tab'} onClick={() => setScreen('fill')}><ScanSearch size={16} /> Autofill</button>
       <button className={screen === 'profile' ? 'tab active' : 'tab'} onClick={() => setScreen('profile')}><UserRound size={16} /> Profile</button>
+      <button className={screen === 'resumes' ? 'tab active' : 'tab'} onClick={() => setScreen('resumes')}><FileText size={16} /> Resumes</button>
+      <button className={screen === 'account' ? 'tab active' : 'tab'} onClick={() => setScreen('account')}><LogIn size={16} /> Account</button>
     </nav>
 
     {notice && <div className="notice" role="status"><CircleAlert size={16} /><span>{notice}</span></div>}
 
-    {screen === 'profile' ? <section className="section">
+    {screen === 'account' ? cloudConfigured ? <AccountPanel session={session} /> : <section className="section"><h1>Cloud account</h1><p className="intro">Cloud settings are not configured. Local autofill remains available. See the Phase 2 setup guide.</p></section>
+    : screen === 'resumes' ? session && cloudConfigured ? <ResumesPanel onProfileUpdated={refreshApprovedProfile} /> : <section className="section"><h1>Resume review</h1><p className="intro">Sign in to upload and review resumes privately.</p><button className="secondary" onClick={() => setScreen('account')}>Go to account</button></section>
+    : screen === 'profile' ? <section className="section">
       <div className="section-heading"><div><p className="eyebrow">YOUR INFORMATION</p><h1>Local profile</h1></div><ShieldCheck size={22} /></div>
-      <p className="intro">Only information you save here is available for filling. Enter first and last names separately if you want those fields filled. Your profile stays in Chrome storage on this device.</p>
+      <p className="intro">Only information you save here is available for filling. Enter first and last names separately if you want those fields filled. {session ? 'This local copy belongs to your signed-in account. Save it to the cloud or explicitly load your account profile.' : 'Your signed-out profile stays on this device and is not shown in signed-in accounts.'}</p>
+      {session && <button className="secondary full load-cloud" onClick={() => { void loadFromAccount(); }}>Load profile from account</button>}
       <form onSubmit={(event) => { void save(event); }}>
         {profileFields.map(({ key, label, placeholder, type }) => <label className="field" key={key}>
           <span>{label}{(key === 'fullName' || key === 'email') && <b> *</b>}</span>
           <input type={type ?? 'text'} value={draft[key]} placeholder={placeholder} onChange={(event) => setDraft({ ...draft, [key]: event.target.value })} required={key === 'fullName' || key === 'email'} />
         </label>)}
-        <button className="primary full" type="submit">Save profile</button>
+        <button className="primary full" type="submit">{session ? 'Save locally & to account' : 'Save local profile'}</button>
       </form>
+      {session && <VerifiedFacts ownerId={session.user.id} />}
     </section> : <section className="section">
       <div className="section-heading"><div><p className="eyebrow">APPLICATION WORKFLOW</p><h1>Review before fill</h1></div><ShieldCheck size={22} /></div>
       <p className="intro">Scan the current page, review the proposed matches, then fill. The final submit button is always yours to click.</p>
@@ -152,7 +199,7 @@ function App(): React.JSX.Element {
         </> : null}
       </>}
     </section>}
-    <footer><ShieldCheck size={14} /> Local profile · No automatic submission</footer>
+    <footer><ShieldCheck size={14} /> User review required · No automatic submission</footer>
   </main>;
 }
 
