@@ -10,8 +10,9 @@ from .routes.account import router as account_router
 from .routes.facts import router as facts_router
 from .routes.tailor import router as tailor_router
 from .routes.screening import router as screening_router
+from .routes.applications import router as applications_router
 
-app = FastAPI(title="auto-fill API", version="0.5.0")
+app = FastAPI(title="auto-fill API", version="0.6.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.allowed_origins),
@@ -25,6 +26,7 @@ app.include_router(account_router)
 app.include_router(facts_router)
 app.include_router(tailor_router)
 app.include_router(screening_router)
+app.include_router(applications_router)
 
 
 @app.get("/api/v1/health")

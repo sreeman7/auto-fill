@@ -1,6 +1,6 @@
 # auto-fill
 
-auto-fill is a user-controlled Chrome extension for reviewing and filling job applications. Phase 1 provides local profile storage and deterministic form filling. Phase 2 adds Supabase accounts, account-scoped profiles, private resume uploads, deterministic extraction proposals, and explicit fact approval. Phase 3 adds generic, Greenhouse and Lever form adapters, dynamic form rescanning, and validation reporting. Phase 4 adds grounded job analysis, reviewable resume suggestions, and text-based PDF export. Phase 5 adds screening question drafts and saved, user-approved answers. The extension never submits applications.
+auto-fill is a user-controlled Chrome extension for reviewing and filling job applications. Phase 1 provides local profile storage and deterministic form filling. Phase 2 adds Supabase accounts, account-scoped profiles, private resume uploads, deterministic extraction proposals, and explicit fact approval. Phase 3 adds generic, Greenhouse and Lever form adapters, dynamic form rescanning, and validation reporting. Phase 4 adds grounded job analysis, reviewable resume suggestions, and text-based PDF export. Phase 5 adds screening question drafts and saved, user-approved answers. Phase 6 adds a private application tracker with status updates, duplicate checks, and search. The extension never submits applications.
 
 ## Requirements and checks
 
@@ -53,11 +53,15 @@ Run the API and reload the built extension. In **Tailor**, choose an uploaded re
 
 Use the same server-only `OPENAI_API_KEY` and `TAILOR_SIGNING_KEY` configured for Phase 4. Apply the new migration with `alembic -c apps/api/alembic.ini upgrade head`, restart the API, rebuild the extension and reload it in Chrome. In **Answers**, paste a screening question or select its text on the application page and click **Use selected page text**. Review the question, optionally add job context, choose a draft length and request a draft. Edit the answer, check the explicit approval box and save it. Saved answers can be copied or removed. Sensitive questions are not drafted or saved; answer them directly on the application page. See [Phase 5](docs/phase-5.md) for safety rules and test limits.
 
+## Phase 6 application tracker
+
+Apply the latest migration with `alembic -c apps/api/alembic.ini upgrade head`, restart the API, rebuild the extension and reload it in Chrome. Sign in and open **Tracker** to save a job, record its status, resume version, notes, interview dates and follow-up dates. New records start as **Saved**. After submitting on the job site yourself, edit the record, choose **Applied** or a later status, and explicitly confirm submission. Autofill never changes a tracked status. Duplicate job URLs are blocked; a matching company and title asks for review before you save another role. See [Phase 6](docs/phase-6.md) for API behavior and test limits.
+
 ## Repository
 
 - `apps/extension`: MV3 extension, React side panel, local and cloud profile flows.
 - `apps/api`: FastAPI routes, SQLAlchemy models, Alembic migration, resume parsing and Supabase Auth/Storage integration.
 - `tests/fixtures`: sample application forms.
-- `docs/phase-1.md` through `docs/phase-5.md`: scope, review findings, verification and limits.
+- `docs/phase-1.md` through `docs/phase-6.md`: scope, review findings, verification and limits.
 
 The API uses the caller's Supabase token for Auth verification and private Storage operations. Database sessions temporarily assume the `authenticated` role with that verified user's ID, so RLS policies apply. The server secret key is used only for account deletion and must never be bundled with the extension.

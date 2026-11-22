@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { approvedAnswerSchema, resumeSchema, screeningResultSchema, suggestionSchema, tailorSchema } from './cloud';
+import { applicationSchema, applicationStatusSchema, approvedAnswerSchema, resumeSchema, screeningResultSchema, suggestionSchema, tailorSchema } from './cloud';
 
 describe('cloud response contracts', () => {
   it('rejects unsupported resume suggestion kinds and missing provenance', () => {
@@ -36,5 +36,14 @@ describe('cloud response contracts', () => {
     expect(screeningResultSchema.safeParse({ ...proposal, sourceFacts: undefined }).success).toBe(false);
     expect(approvedAnswerSchema.safeParse({ id, sourceDraftId: id, question: proposal.question, answer: proposal.answer,
       intent: 'technical', sourceFactIds: [id], editedByUser: false, createdAt: new Date().toISOString() }).success).toBe(true);
+  });
+
+  it('requires the tracker status and date contract', () => {
+    const item = { id: crypto.randomUUID(), company: 'Acme', jobTitle: 'Engineer', jobUrl: 'https://jobs.example/42',
+      location: 'Edmonton', resumeVersion: 'v2', status: 'saved', appliedOn: null, notes: '',
+      interviewDates: [], followUpDates: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    expect(applicationSchema.safeParse(item).success).toBe(true);
+    expect(applicationSchema.safeParse({ ...item, interviewDates: undefined }).success).toBe(false);
+    expect(applicationStatusSchema.safeParse('submitted_automatically').success).toBe(false);
   });
 });

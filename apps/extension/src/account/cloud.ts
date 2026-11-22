@@ -37,10 +37,54 @@ async function request(path: string, init: RequestInit = {}, timeoutMs = 20000):
   } catch { throw new Error('Could not reach the auto-fill API.'); }
   if (!response.ok) {
     const body: unknown = await response.json().catch(() => null);
-    const detail = typeof body === 'object' && body !== null && 'detail' in body && typeof body.detail === 'string' ? body.detail : 'Request failed';
+    const rawDetail = typeof body === 'object' && body !== null && 'detail' in body ? body.detail : null;
+    if (response.status === 409 && typeof rawDetail === 'object' && rawDetail !== null && 'code' in rawDetail && rawDetail.code === 'possible_duplicate') {
+      throw new PossibleDuplicateError();
+    }
+    const detail = typeof rawDetail === 'string' ? rawDetail : typeof rawDetail === 'object' && rawDetail !== null && 'message' in rawDetail && typeof rawDetail.message === 'string' ? rawDetail.message : 'Request failed';
     throw new Error(`${detail} (${response.status})`);
   }
   return response.json();
+}
+
+export class PossibleDuplicateError extends Error {
+  constructor() { super('A job with this company and title is already tracked. Check the list before saving another.'); }
+}
+
+export const applicationStatusSchema = z.enum(['saved', 'in_progress', 'ready_for_review', 'applied', 'assessment', 'interview', 'offer', 'rejected', 'withdrawn']);
+export const applicationSchema = z.object({
+  id: z.string().uuid(), company: z.string(), jobTitle: z.string(), jobUrl: z.string(),
+  location: z.string(), resumeVersion: z.string(), status: applicationStatusSchema,
+  appliedOn: z.string().nullable(), notes: z.string(), interviewDates: z.array(z.string()),
+  followUpDates: z.array(z.string()), createdAt: z.string(), updatedAt: z.string(),
+});
+export type Application = z.infer<typeof applicationSchema>;
+export type ApplicationStatus = z.infer<typeof applicationStatusSchema>;
+export type ApplicationFields = Pick<Application, 'company' | 'jobTitle' | 'jobUrl' | 'location' | 'resumeVersion' | 'notes' | 'interviewDates' | 'followUpDates'>;
+export type ApplicationUpdate = ApplicationFields & { status: ApplicationStatus; appliedOn: string | null; confirmSubmitted?: boolean; allowPossibleDuplicate?: boolean };
+
+export async function listApplications(query: { q?: string; status?: string; sort?: string; offset?: number } = {}): Promise<{ items: Application[]; total: number }> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value));
+  const result = await request(`/applications${params.size ? `?${params}` : ''}`);
+  return z.object({ items: z.array(applicationSchema), total: z.number() }).parse(result);
+}
+
+export async function createApplication(fields: ApplicationFields & { allowPossibleDuplicate?: boolean }): Promise<Application> {
+  return applicationSchema.parse(await request('/applications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields) }));
+}
+
+export async function updateApplication(id: string, fields: ApplicationUpdate): Promise<Application> {
+  return applicationSchema.parse(await request(`/applications/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields) }));
+}
+
+export async function deleteApplication(id: string): Promise<void> {
+  if (!apiBase) throw new Error('API URL is not configured.');
+  const session = await requireSession();
+  const response = await fetch(`${apiBase}/api/v1/applications/${id}`, {
+    method: 'DELETE', headers: { Authorization: `Bearer ${session.access_token}` }, signal: AbortSignal.timeout(20000),
+  });
+  if (!response.ok) throw new Error(`Could not remove application (${response.status}).`);
 }
 
 export async function getCloudProfile(): Promise<Profile> {
