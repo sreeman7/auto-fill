@@ -12,6 +12,7 @@
     "lint": "npm run lint -w @auto-fill/extension",
     "verify:release": "python3 scripts/verify_release.py",
     "package:beta": "python3 scripts/package_beta.py",
+    "local": "bash scripts/run_local.sh",
     "check": "npm run typecheck && npm run lint && npm test && npm run test:api && npm run build && npm run verify:release"
   }
 }

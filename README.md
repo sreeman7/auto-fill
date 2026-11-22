@@ -20,10 +20,10 @@ npm run check
 ## Local autofill (no account needed)
 
 ```bash
-python3 -m http.server 8000 --bind 127.0.0.1
+npm run local
 ```
 
-Open `http://127.0.0.1:8000/tests/fixtures/application.html` in Chrome. At `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select this repository's `apps/extension/dist` directory. Click the **auto-fill** toolbar icon while the fixture tab is active. Save a local profile, scan, review the proposed values, and fill. Inspect the page before using its manual test submit button. Reload the extension in `chrome://extensions` after each build. The `greenhouse.html`, `lever.html`, and `dynamic.html` files in the same fixtures directory exercise Phase 3 behavior locally.
+This starts the API on port 8001 and serves test forms on port 8000; press Ctrl+C to stop both. Open `http://127.0.0.1:8000/tests/fixtures/application.html` in Chrome. At `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select this repository's `apps/extension/dist` directory. Click the **auto-fill** toolbar icon while the fixture tab is active. Save a local profile, scan, review the proposed values, and fill. Inspect the page before using its manual test submit button. Reload the extension in `chrome://extensions` after each build. The `greenhouse.html`, `lever.html`, and `dynamic.html` files in the same fixtures directory exercise Phase 3 behavior locally.
 
 ## Phase 2 cloud setup
 
