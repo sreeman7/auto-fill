@@ -44,6 +44,10 @@ if (!window.__autoFillListenerInstalled) {
   }
 
   async function handle(message: ContentRequest): Promise<ContentResponse> {
+    if (message.type === 'AUTO_FILL_SELECTED_TEXT') {
+      const selectedText = (window.getSelection()?.toString() ?? '').trim().slice(0, 1000);
+      return selectedText.length >= 10 ? { ok: true, selectedText } : { ok: false, error: 'Select the question text on the page first, or paste it manually.' };
+    }
     if (message.type === 'AUTO_FILL_JOB_TEXT') {
       const source = document.querySelector('[itemprop="description"], [data-qa="job-description"], .job-description, main, article') ?? document.body;
       const jobText = ((source as HTMLElement).innerText || source.textContent || '').trim().slice(0, 16000);

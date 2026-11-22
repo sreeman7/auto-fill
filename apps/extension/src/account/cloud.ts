@@ -125,6 +125,51 @@ export async function exportTailoredResume(draftId: string, selectedSuggestionId
   return response.blob();
 }
 
+const screeningSourceFactSchema = z.object({ factId: z.string().uuid(), kind: suggestionSchema.shape.kind, value: z.string() });
+
+export const screeningResultSchema = z.discriminatedUnion('sensitive', [
+  z.object({ sensitive: z.literal(true), reason: z.string() }),
+  z.object({ sensitive: z.literal(false), draftId: z.string().uuid(), createdAt: z.string(),
+    inputTokens: z.number().int().nonnegative(), outputTokens: z.number().int().nonnegative(),
+    question: z.string(), intent: z.enum(['experience', 'technical', 'project', 'motivation', 'other']),
+    answer: z.string(), jobQuote: z.string(), needsPersonalInput: z.boolean(),
+    sourceFacts: z.array(screeningSourceFactSchema), maxWords: z.union([z.literal(60), z.literal(120), z.literal(200)]) }),
+]);
+
+export const approvedAnswerSchema = z.object({
+  id: z.string().uuid(), sourceDraftId: z.string().uuid(), question: z.string(), answer: z.string(),
+  intent: z.enum(['experience', 'technical', 'project', 'motivation', 'other']), sourceFactIds: z.array(z.string().uuid()),
+  editedByUser: z.boolean(), createdAt: z.string(),
+});
+
+export type ScreeningResult = z.infer<typeof screeningResultSchema>;
+export type ApprovedAnswer = z.infer<typeof approvedAnswerSchema>;
+
+export async function draftScreeningAnswer(question: string, jobContext: string, maxWords: 60 | 120 | 200): Promise<ScreeningResult> {
+  return screeningResultSchema.parse(await request('/screening/draft', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, jobContext, maxWords }),
+  }, 45000));
+}
+
+export async function approveScreeningAnswer(draftId: string, answer: string): Promise<ApprovedAnswer> {
+  return approvedAnswerSchema.parse(await request(`/screening/${draftId}/approve`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answer, confirmed: true }),
+  }));
+}
+
+export async function listApprovedAnswers(): Promise<ApprovedAnswer[]> {
+  return z.array(approvedAnswerSchema).parse(await request('/screening/answers'));
+}
+
+export async function deleteApprovedAnswer(answerId: string): Promise<void> {
+  if (!apiBase) throw new Error('API URL is not configured.');
+  const session = await requireSession();
+  const response = await fetch(`${apiBase}/api/v1/screening/answers/${answerId}`, {
+    method: 'DELETE', headers: { Authorization: `Bearer ${session.access_token}` }, signal: AbortSignal.timeout(20000),
+  });
+  if (!response.ok) throw new Error(`Could not remove the saved answer (${response.status}).`);
+}
+
 export async function deleteAccount(): Promise<void> {
   if (!apiBase) throw new Error('API URL is not configured.');
   const session = await requireSession();

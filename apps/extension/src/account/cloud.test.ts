@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resumeSchema, suggestionSchema, tailorSchema } from './cloud';
+import { approvedAnswerSchema, resumeSchema, screeningResultSchema, suggestionSchema, tailorSchema } from './cloud';
 
 describe('cloud response contracts', () => {
   it('rejects unsupported resume suggestion kinds and missing provenance', () => {
@@ -24,5 +24,17 @@ describe('cloud response contracts', () => {
     expect(tailorSchema.safeParse(analysis).success).toBe(true);
     expect(tailorSchema.safeParse({ ...analysis, score: 120 }).success).toBe(false);
     expect(tailorSchema.safeParse({ ...analysis, requirements: [{ quote: 'Python', priority: 'required', evidenced: true }] }).success).toBe(false);
+  });
+
+  it('keeps sensitive screening results separate from savable drafts', () => {
+    const id = crypto.randomUUID();
+    expect(screeningResultSchema.safeParse({ sensitive: true, reason: 'Answer manually.' }).success).toBe(true);
+    const proposal = { sensitive: false, draftId: id, createdAt: new Date().toISOString(), inputTokens: 42, outputTokens: 12,
+      question: 'Describe your work with Python.', intent: 'technical', answer: 'Built Python data pipeline.', jobQuote: '',
+      needsPersonalInput: false, sourceFacts: [{ factId: id, kind: 'project', value: 'Built Python data pipeline' }], maxWords: 120 };
+    expect(screeningResultSchema.safeParse(proposal).success).toBe(true);
+    expect(screeningResultSchema.safeParse({ ...proposal, sourceFacts: undefined }).success).toBe(false);
+    expect(approvedAnswerSchema.safeParse({ id, sourceDraftId: id, question: proposal.question, answer: proposal.answer,
+      intent: 'technical', sourceFactIds: [id], editedByUser: false, createdAt: new Date().toISOString() }).success).toBe(true);
   });
 });

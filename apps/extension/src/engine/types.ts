@@ -41,6 +41,7 @@ export interface FillResult {
 export type ContentRequest =
   | { type: 'AUTO_FILL_SCAN' }
   | { type: 'AUTO_FILL_JOB_TEXT' }
+  | { type: 'AUTO_FILL_SELECTED_TEXT' }
   | { type: 'AUTO_FILL_APPLY'; adapterId: AdapterId; pageUrl: string; expected: FormField[]; plan: FillPlanItem[] };
 
 export interface FormChangedMessage {
@@ -53,6 +54,7 @@ export interface FormChangedMessage {
 
 export type ContentResponse =
   | { ok: true; jobText: string }
+  | { ok: true; selectedText: string }
   | { ok: true; adapterId: AdapterId; pageUrl: string; fields: FormField[]; issues: ValidationIssue[] }
   | { ok: true; adapterId: AdapterId; pageUrl: string; fields: FormField[]; issues: ValidationIssue[]; results: FillResult[]; formChanged: boolean }
   | { ok: false; error: string };
