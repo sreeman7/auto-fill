@@ -44,6 +44,11 @@ if (!window.__autoFillListenerInstalled) {
   }
 
   async function handle(message: ContentRequest): Promise<ContentResponse> {
+    if (message.type === 'AUTO_FILL_JOB_TEXT') {
+      const source = document.querySelector('[itemprop="description"], [data-qa="job-description"], .job-description, main, article') ?? document.body;
+      const jobText = ((source as HTMLElement).innerText || source.textContent || '').trim().slice(0, 16000);
+      return jobText.length >= 100 ? { ok: true, jobText } : { ok: false, error: 'No readable job description was found. Paste it manually.' };
+    }
     const adapter = currentAdapter();
     if (message.type === 'AUTO_FILL_SCAN') {
       const next = inventory(adapter);

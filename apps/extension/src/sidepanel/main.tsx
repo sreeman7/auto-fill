@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Check, CircleAlert, FileCheck2, ScanSearch, ShieldCheck, UserRound, LogIn, FileText } from 'lucide-react';
+import { Check, CircleAlert, FileCheck2, ScanSearch, ShieldCheck, UserRound, LogIn, FileText, Sparkles } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { AccountPanel } from '../account/AccountPanel';
 import { getCloudProfile, putCloudProfile } from '../account/cloud';
 import { cloudConfigured, supabase } from '../account/supabase';
 import { ResumesPanel } from '../resumes/ResumesPanel';
+import { TailorPanel } from '../tailor/TailorPanel';
 import { VerifiedFacts } from '../account/VerifiedFacts';
 import { buildPlan } from '../engine/match';
 import { emptyProfile, loadProfile, profileSchema, saveProfile } from '../engine/profile';
@@ -13,7 +14,7 @@ import type { Profile } from '../engine/profile';
 import type { AdapterId, ContentResponse, FillResult, FormChangedMessage, FormField, ValidationIssue } from '../engine/types';
 import './styles.css';
 
-type Screen = 'fill' | 'profile' | 'account' | 'resumes';
+type Screen = 'fill' | 'profile' | 'account' | 'resumes' | 'tailor';
 type Phase = 'idle' | 'busy' | 'scanned' | 'filled';
 
 const profileFields: { key: keyof Profile; label: string; placeholder: string; type?: string }[] = [
@@ -185,6 +186,7 @@ function App(): React.JSX.Element {
       <button className={screen === 'fill' ? 'tab active' : 'tab'} onClick={() => setScreen('fill')}><ScanSearch size={16} /> Autofill</button>
       <button className={screen === 'profile' ? 'tab active' : 'tab'} onClick={() => setScreen('profile')}><UserRound size={16} /> Profile</button>
       <button className={screen === 'resumes' ? 'tab active' : 'tab'} onClick={() => setScreen('resumes')}><FileText size={16} /> Resumes</button>
+      <button className={screen === 'tailor' ? 'tab active' : 'tab'} onClick={() => setScreen('tailor')}><Sparkles size={16} /> Tailor</button>
       <button className={screen === 'account' ? 'tab active' : 'tab'} onClick={() => setScreen('account')}><LogIn size={16} /> Account</button>
     </nav>
 
@@ -192,6 +194,7 @@ function App(): React.JSX.Element {
 
     {screen === 'account' ? cloudConfigured ? <AccountPanel session={session} /> : <section className="section"><h1>Cloud account</h1><p className="intro">Cloud settings are not configured. Local autofill remains available. See the Phase 2 setup guide.</p></section>
     : screen === 'resumes' ? session && cloudConfigured ? <ResumesPanel onProfileUpdated={refreshApprovedProfile} /> : <section className="section"><h1>Resume review</h1><p className="intro">Sign in to upload and review resumes privately.</p><button className="secondary" onClick={() => setScreen('account')}>Go to account</button></section>
+    : screen === 'tailor' ? session && cloudConfigured ? <TailorPanel /> : <section className="section"><h1>Tailor resume</h1><p className="intro">Sign in to analyze a job against your approved career facts and export a tailored PDF.</p><button className="secondary" onClick={() => setScreen('account')}>Go to account</button></section>
     : screen === 'profile' ? <section className="section">
       <div className="section-heading"><div><p className="eyebrow">YOUR INFORMATION</p><h1>Local profile</h1></div><ShieldCheck size={22} /></div>
       <p className="intro">Only information you save here is available for filling. Enter first and last names separately if you want those fields filled. {session ? 'This local copy belongs to your signed-in account. Save it to the cloud or explicitly load your account profile.' : 'Your signed-out profile stays on this device and is not shown in signed-in accounts.'}</p>

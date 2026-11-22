@@ -25,8 +25,12 @@ it('reports new fields and rejects an old preview or a different page', async ()
   expect(listener).toBeDefined();
   const send = (request: ContentRequest) => new Promise<ContentResponse>((resolve) => listener!(request, undefined, resolve));
 
+  document.body.insertAdjacentHTML('beforeend', `<main>${'Python engineering position. '.repeat(6)}</main>`);
+  const captured = await send({ type: 'AUTO_FILL_JOB_TEXT' });
+  expect(captured).toMatchObject({ ok: true, jobText: expect.stringContaining('Python engineering position') });
+
   const scan = await send({ type: 'AUTO_FILL_SCAN' });
-  if (!scan.ok) throw new Error(scan.error);
+  if (!scan.ok || !('fields' in scan)) throw new Error('Scan failed');
   const plan = buildPlan(scan.fields, profile);
   document.querySelector('#conditional')!.innerHTML = '<label for="city">City</label><input id="city" required>';
   await vi.waitFor(() => expect(sendMessage).toHaveBeenCalled(), { timeout: 1000 });
@@ -39,7 +43,7 @@ it('reports new fields and rejects an old preview or a different page', async ()
   expect(document.querySelector<HTMLInputElement>('#email')!.value).toBe('');
 
   const fresh = await send({ type: 'AUTO_FILL_SCAN' });
-  if (!fresh.ok) throw new Error(fresh.error);
+  if (!fresh.ok || !('fields' in fresh)) throw new Error('Scan failed');
   const wrongPage = await send({ type: 'AUTO_FILL_APPLY', adapterId: fresh.adapterId, pageUrl: `${fresh.pageUrl}?different-job`, expected: fresh.fields, plan: buildPlan(fresh.fields, profile) });
   expect(wrongPage).toMatchObject({ ok: false, error: 'The application page changed. Scan again.' });
   expect(document.querySelector<HTMLInputElement>('#city')!.value).toBe('');

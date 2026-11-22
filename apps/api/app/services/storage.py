@@ -37,6 +37,22 @@ async def upload_resume(user: AuthUser, path: str, data: bytes, content_type: st
         raise StorageError("Private storage rejected the upload")
 
 
+async def download_resume(user: AuthUser, path: str) -> bytes:
+    if not settings.supabase_url or not settings.supabase_publishable_key:
+        raise StorageError("Private storage is not configured")
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.get(
+                object_url(path),
+                headers={"apikey": settings.supabase_publishable_key, "Authorization": f"Bearer {user.token}"},
+            )
+    except httpx.HTTPError as exc:
+        raise StorageError("Private storage unavailable") from exc
+    if response.status_code != 200 or len(response.content) > 5 * 1024 * 1024:
+        raise StorageError("Could not read the private resume")
+    return response.content
+
+
 async def delete_resume(user: AuthUser, path: str) -> None:
     if not settings.supabase_url or not settings.supabase_publishable_key:
         return

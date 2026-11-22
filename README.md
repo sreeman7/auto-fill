@@ -1,6 +1,6 @@
 # auto-fill
 
-auto-fill is a user-controlled Chrome extension for reviewing and filling job applications. Phase 1 provides local profile storage and deterministic form filling. Phase 2 adds Supabase accounts, account-scoped profiles, private resume uploads, deterministic extraction proposals, and explicit fact approval. Phase 3 adds generic, Greenhouse and Lever form adapters, dynamic form rescanning, and validation reporting. The extension never submits applications.
+auto-fill is a user-controlled Chrome extension for reviewing and filling job applications. Phase 1 provides local profile storage and deterministic form filling. Phase 2 adds Supabase accounts, account-scoped profiles, private resume uploads, deterministic extraction proposals, and explicit fact approval. Phase 3 adds generic, Greenhouse and Lever form adapters, dynamic form rescanning, and validation reporting. Phase 4 adds grounded job analysis, reviewable resume suggestions, and text-based PDF export. The extension never submits applications.
 
 ## Requirements and checks
 
@@ -37,11 +37,23 @@ The account tab supports email/password sign-up and sign-in, Google sign-in when
 
 Upload a text-based PDF or DOCX (5 MB maximum) from the **Resumes** tab. Each extracted fact remains a suggestion until selected and approved. Approved facts can later be viewed, corrected or removed under **Profile**. Existing verified profile values are preserved; approved contact details fill only empty account fields. Image-only PDFs need OCR, which is not part of Phase 2.
 
+## Phase 4 job analysis and PDF export
+
+After the Phase 2 cloud setup, add a server-only `OPENAI_API_KEY` and a random `TAILOR_SIGNING_KEY` of at least 32 characters to `apps/api/.env`. `OPENAI_MODEL` defaults to `gpt-4o-mini` and can be changed on the server. Keep both secrets out of `apps/extension/.env`. Install the updated API dependencies, then apply the new migration:
+
+```bash
+source .venv/bin/activate
+python -m pip install -e './apps/api[dev]'
+alembic -c apps/api/alembic.ini upgrade head
+```
+
+Run the API and reload the built extension. In **Tailor**, choose an uploaded resume, paste a job description or copy text from the current page, then inspect the extracted requirements and before/after proposals. Select each rewrite you approve and export the PDF. The export uses approved career facts even when no rewrite is selected. The [Phase 4 guide](docs/phase-4.md) describes evidence checks and limits.
+
 ## Repository
 
 - `apps/extension`: MV3 extension, React side panel, local and cloud profile flows.
 - `apps/api`: FastAPI routes, SQLAlchemy models, Alembic migration, resume parsing and Supabase Auth/Storage integration.
 - `tests/fixtures`: sample application forms.
-- `docs/phase-1.md`, `docs/phase-2.md`, and `docs/phase-3.md`: scope, review findings, verification and limits.
+- `docs/phase-1.md` through `docs/phase-4.md`: scope, review findings, verification and limits.
 
 The API uses the caller's Supabase token for Auth verification and private Storage operations. Database sessions temporarily assume the `authenticated` role with that verified user's ID, so RLS policies apply. The server secret key is used only for account deletion and must never be bundled with the extension.

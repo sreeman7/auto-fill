@@ -24,7 +24,7 @@ export const factSchema = z.object({
 export type Resume = z.infer<typeof resumeSchema>;
 export type CareerFact = z.infer<typeof factSchema>;
 
-async function request(path: string, init: RequestInit = {}): Promise<unknown> {
+async function request(path: string, init: RequestInit = {}, timeoutMs = 20000): Promise<unknown> {
   if (!apiBase) throw new Error('API URL is not configured.');
   const session = await requireSession();
   let response: Response;
@@ -32,7 +32,7 @@ async function request(path: string, init: RequestInit = {}): Promise<unknown> {
     response = await fetch(`${apiBase}/api/v1${path}`, {
       ...init,
       headers: { ...init.headers, Authorization: `Bearer ${session.access_token}` },
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch { throw new Error('Could not reach the auto-fill API.'); }
   if (!response.ok) {
@@ -86,6 +86,43 @@ export async function approveResume(id: string, items: { id: string; value: stri
   return z.object({ approvedCount: z.number(), profileUpdated: z.boolean() }).parse(await request(`/resumes/${id}/approve`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }),
   }));
+}
+
+export const tailorSchema = z.object({
+  draftId: z.string().uuid(), resumeId: z.string().uuid(), originalFilename: z.string(), originalText: z.string(),
+  createdAt: z.string(), inputTokens: z.number().int().nonnegative(), outputTokens: z.number().int().nonnegative(),
+  jobTitle: z.string(), company: z.string(), score: z.number().int().min(0).max(100).nullable(), scoreExplanation: z.string(),
+  requirements: z.array(z.object({ quote: z.string(), priority: z.enum(['required', 'preferred']), evidenced: z.boolean(),
+    evidence: z.array(z.object({ factId: z.string().uuid(), kind: suggestionSchema.shape.kind, value: z.string() })) })),
+  suggestions: z.array(z.object({ id: z.string().uuid(), factId: z.string().uuid(), kind: suggestionSchema.shape.kind,
+    before: z.string(), after: z.string() })),
+});
+
+export type TailoredDraft = z.infer<typeof tailorSchema>;
+
+export async function analyzeJob(resumeId: string, jobDescription: string): Promise<TailoredDraft> {
+  return tailorSchema.parse(await request('/tailor/analyze', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resumeId, jobDescription }),
+  }, 45000));
+}
+
+export async function exportTailoredResume(draftId: string, selectedSuggestionIds: string[]): Promise<Blob> {
+  if (!apiBase) throw new Error('API URL is not configured.');
+  const session = await requireSession();
+  let response: Response;
+  try {
+    response = await fetch(`${apiBase}/api/v1/tailor/${draftId}/export`, {
+      method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selectedSuggestionIds }), signal: AbortSignal.timeout(30000),
+    });
+  } catch { throw new Error('Could not reach the auto-fill API.'); }
+  if (!response.ok) {
+    const body: unknown = await response.json().catch(() => null);
+    const detail = typeof body === 'object' && body !== null && 'detail' in body && typeof body.detail === 'string' ? body.detail : 'Export failed';
+    throw new Error(`${detail} (${response.status})`);
+  }
+  if (!response.headers.get('Content-Type')?.includes('application/pdf')) throw new Error('Server did not return a PDF.');
+  return response.blob();
 }
 
 export async function deleteAccount(): Promise<void> {
